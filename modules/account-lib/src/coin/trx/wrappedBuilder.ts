@@ -9,10 +9,11 @@ import { KeyPair } from './keyPair';
 import { decodeTransaction } from './utils';
 import { ContractType } from './enum';
 import { InvalidTransactionError } from '../baseCoin/errors';
-import { ContractCallBuilder } from './contractCallBuilder';
+// import { ContractCallBuilder } from './contractCallBuilder';
 
 export class WrappedBuilder extends TransactionBuilder {
-  private _builder: TransactionBuilder | ContractCallBuilder;
+  private _builder: TransactionBuilder;
+  // private _builder: TransactionBuilder | ContractCallBuilder;
 
   constructor(_coinConfig: Readonly<CoinConfig>) {
     super(_coinConfig);
@@ -20,9 +21,9 @@ export class WrappedBuilder extends TransactionBuilder {
     this._builder = new TransactionBuilder(_coinConfig);
   }
 
-  getContractCallBuilder(tx?: Transaction): ContractCallBuilder {
-    return this.initializeBuilder(tx, new ContractCallBuilder(this._coinConfig));
-  }
+  // getContractCallBuilder(tx?: Transaction): ContractCallBuilder {
+  //   return this.initializeBuilder(tx, new ContractCallBuilder(this._coinConfig));
+  // }
 
   private initializeBuilder<T extends TransactionBuilder>(tx: Transaction | undefined, builder: T): T {
     if (tx) {

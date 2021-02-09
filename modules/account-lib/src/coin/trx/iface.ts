@@ -37,8 +37,8 @@ export interface TransactionReceipt {
 export interface RawData {
   expiration: number;
   timestamp: number;
-  ref_block_bytes?: string; // TODO , remove ? optional
-  ref_block_hash?: string; // TODO , remove ? optional
+  ref_block_bytes: string; // TODO , remove ? optional
+  ref_block_hash: string; // TODO , remove ? optional
   contractType?: ContractType;
   contract: TransferContract[] | AccountPermissionUpdateContract[] | TriggerSmartContract[];
 }

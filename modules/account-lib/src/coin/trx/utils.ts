@@ -1,4 +1,5 @@
 import assert from 'assert';
+import * as hex from '@stablelib/hex';
 import * as tronweb from 'tronweb';
 import { protocol } from '../../../resources/trx/protobuf/tron';
 
@@ -157,6 +158,8 @@ export function decodeTransaction(hexString: string): RawData {
     contract,
     expiration: rawTransaction.expiration,
     timestamp: rawTransaction.timestamp,
+    ref_block_bytes: rawTransaction.blockBytes,
+    ref_block_hash: rawTransaction.blockHash,
   };
 }
 
@@ -169,7 +172,7 @@ export function decodeTransaction(hexString: string): RawData {
  */
 export function decodeRawTransaction(
   hexString: string,
-): { expiration: number; timestamp: number; contracts: Array<any> } {
+): { expiration: number; timestamp: number; contracts: Array<any>; blockBytes: string; blockHash: string  } {
   const bytes = Buffer.from(hexString, 'hex');
 
   let raw;
@@ -184,6 +187,8 @@ export function decodeRawTransaction(
     expiration: Number(raw.expiration),
     timestamp: Number(raw.timestamp),
     contracts: raw.contract,
+    blockBytes: toHex(raw.refBlockBytes),
+    blockHash: toHex(raw.refBlockHash),
   };
 }
 
@@ -312,4 +317,14 @@ export function isValidRawTransactionFormat(rawTransaction: any): boolean {
     return true;
   }
   return false;
+}
+
+/**
+ * Returns an hex string of the given buffer
+ *
+ * @param {Buffer | Uint8Array} buffer - the buffer to be converted to hex
+ * @returns {string} - the hex value
+ */
+export function toHex(buffer: Buffer | Uint8Array): string {
+  return hex.encode(buffer, true);
 }
