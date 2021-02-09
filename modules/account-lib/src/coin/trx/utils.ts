@@ -292,3 +292,24 @@ function createPermission(raw: { permissionName: string; threshold: number }): P
   }
   return { type: permissionType, threshold: raw.threshold };
 }
+
+/**
+ * @param rawTransaction
+ */
+export function isValidTxJsonString(rawTransaction: string): boolean {
+  const transaction = JSON.parse(rawTransaction);
+  return transaction.hasOwnProperty('txID');
+}
+
+/**
+ * Returns whether the provided raw transaction accommodates to bitgo's preferred format
+ *
+ * @param {any} rawTransaction - The raw transaction to be checked
+ * @returns {boolean} the validation result
+ */
+export function isValidRawTransactionFormat(rawTransaction: any): boolean {
+  if (typeof rawTransaction === 'string' && (isValidHex(rawTransaction) || isValidTxJsonString(rawTransaction))) {
+    return true;
+  }
+  return false;
+}
