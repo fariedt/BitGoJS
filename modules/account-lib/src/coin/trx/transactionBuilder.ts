@@ -6,7 +6,7 @@ import {
   SigningError,
   BuildTransactionError,
   InvalidTransactionError,
-  ParseTransactionError,
+  ParseTransactionError, NotImplementedError,
 } from '../baseCoin/errors';
 import { BaseKey } from '../baseCoin/iface';
 import { BaseTransactionBuilder } from '../baseCoin';
@@ -84,6 +84,10 @@ export class TransactionBuilder extends BaseTransactionBuilder {
       throw new BuildTransactionError('A valid transaction must have an id');
     }
     return Promise.resolve(this.transaction);
+  }
+
+  initBuilder(tx: Transaction) {
+    throw new NotImplementedError('init builder not implemented for this builder type');
   }
 
   /**

@@ -1,7 +1,7 @@
 export { KeyPair } from './keyPair';
 export { Address } from './address';
 export { Transaction } from './transaction';
-export { TransactionBuilderFactory } from './transactionBuilderFactory';
+export { WrappedBuilder } from './wrappedBuilder';
 
 import * as Enum from './enum';
 import * as Interface from './iface';
