@@ -19,6 +19,7 @@ import {
 } from './utils';
 
 import ContractType = protocol.Transaction.Contract.ContractType;
+import BigNumber from 'bignumber.js';
 
 export class ContractCallBuilder extends TransactionBuilder {
   protected _signingKeys: BaseKey[];
@@ -29,7 +30,7 @@ export class ContractCallBuilder extends TransactionBuilder {
   private _refBlockHash: string;
   private _expiration: number;
   private _timestamp: number;
-  private _feeLimit: string;
+  private _fee: Fee;
 
   constructor(_coinConfig: Readonly<CoinConfig>) {
     super(_coinConfig);
@@ -109,6 +110,7 @@ export class ContractCallBuilder extends TransactionBuilder {
     if (!this._refBlockBytes || !this._refBlockHash) {
       throw new BuildTransactionError('Missing block reference information');
     }
+    // VALIDATE MANDATORY FEE
     // TODO : fix validation and how we handle expiration/timestamp
     // if (!this._expiration || !this._timestamp) {
     //   throw new BuildTransactionError('Missing expiration or timestamp info');
@@ -183,7 +185,7 @@ export class ContractCallBuilder extends TransactionBuilder {
   }
 
   fee(fee: Fee): this {
-    this._feeLimit = fee.feeLimit; // TODO : fee validation
+    this._fee = fee; // TODO : fee validation with BigNumber
     return this;
   }
 
@@ -240,7 +242,7 @@ export class ContractCallBuilder extends TransactionBuilder {
       expiration: this._expiration,
       timestamp: this._timestamp,
       contract: [txContract],
-      fee_limit: this._feeLimit,
+      feeLimit: parseInt(this._fee.feeLimit, 10),
     };
     const rawTx = protocol.Transaction.raw.create(raw);
     return Buffer.from(protocol.Transaction.raw.encode(rawTx).finish()).toString('hex');
