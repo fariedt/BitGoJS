@@ -144,7 +144,7 @@ export function decodeTransaction(hexString: string): RawData {
     throw new UtilsError('Number of contracts is greater than 1.');
   }
 
-  let contract: TransferContract[] | AccountPermissionUpdateContract[];
+  let contract: TransferContract[] | AccountPermissionUpdateContract[] | TriggerSmartContract[];
   let contractType: ContractType;
   // ensure the contract type is supported
   switch (rawTransaction.contracts[0].parameter.type_url) {
@@ -154,11 +154,11 @@ export function decodeTransaction(hexString: string): RawData {
       break;
     case 'type.googleapis.com/protocol.AccountPermissionUpdateContract':
       contractType = ContractType.AccountPermissionUpdate;
-      // TODO : ANALYZE IF WE NEED TO CHANGE THE RETURN ( return as array and exports may not be necesary )
       contract = exports.decodeAccountPermissionUpdateContract(rawTransaction.contracts[0].parameter.value);
       break;
     case 'type.googleapis.com/protocol.TriggerSmartContract':
       contractType = ContractType.TriggerSmartContract;
+      // TODO : ANALYZE IF WE NEED TO CHANGE THE RETURN ( return as array and exports may not be necesary )
       contract = exports.decodeTriggerSmartContract(rawTransaction.contracts[0].parameter.value);
       break;
     default:

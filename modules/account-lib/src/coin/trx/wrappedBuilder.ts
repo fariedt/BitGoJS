@@ -9,7 +9,7 @@ import { KeyPair } from './keyPair';
 import { decodeTransaction } from './utils';
 import { ContractType } from './enum';
 import { InvalidTransactionError } from '../baseCoin/errors';
-// import { ContractCallBuilder } from './contractCallBuilder';
+import { ContractCallBuilder } from './contractCallBuilder';
 
 export class WrappedBuilder extends TransactionBuilder {
   private _builder: TransactionBuilder;
@@ -21,9 +21,9 @@ export class WrappedBuilder extends TransactionBuilder {
     this._builder = new TransactionBuilder(_coinConfig);
   }
 
-  // getContractCallBuilder(tx?: Transaction): ContractCallBuilder {
-  //   return this.initializeBuilder(tx, new ContractCallBuilder(this._coinConfig));
-  // }
+  getContractCallBuilder(tx?: Transaction): ContractCallBuilder {
+    return this.initializeBuilder(tx, new ContractCallBuilder(this._coinConfig));
+  }
 
   private initializeBuilder<T extends TransactionBuilder>(tx: Transaction | undefined, builder: T): T {
     if (tx) {
@@ -53,8 +53,8 @@ export class WrappedBuilder extends TransactionBuilder {
       case ContractType.AccountPermissionUpdate:
         this._builder = new TransactionBuilder(this._coinConfig);
         break;
-      // case ContractType.TriggerSmartContract:
-      //   return true
+      case ContractType.TriggerSmartContract:
+        return this.getContractCallBuilder(raw);
       default:
         throw new InvalidTransactionError('Invalid transaction type: ' + contractType);
     }
