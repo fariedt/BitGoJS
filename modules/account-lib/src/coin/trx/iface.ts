@@ -59,10 +59,21 @@ export interface TransferContract {
   parameter: Value;
 }
 
+// TODO : fix duplicated INTERFACES
 export interface TriggerSmartContract {
-  data: string;
+  parameter: ContractCallValue;
+  type?: string;
 }
-
+export interface ContractCallValue {
+  type_url?: string;
+  value: ContractCallValueFields;
+}
+export interface ContractCallValueFields {
+  data: string;
+  contract_address: string;
+  owner_address: string;
+}
+// /////////
 export interface AccountPermissionUpdateContract {
   ownerAddress: string;
   owner: Permission;

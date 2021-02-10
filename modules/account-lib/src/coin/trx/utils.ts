@@ -4,7 +4,14 @@ import * as tronweb from 'tronweb';
 import { protocol } from '../../../resources/trx/protobuf/tron';
 
 import { UtilsError } from '../baseCoin/errors';
-import { TransferContract, RawData, AccountPermissionUpdateContract, TransactionReceipt, Permission } from './iface';
+import {
+  TransferContract,
+  RawData,
+  AccountPermissionUpdateContract,
+  TransactionReceipt,
+  Permission,
+  TriggerSmartContract,
+} from './iface';
 import { ContractType, PermissionType } from './enum';
 
 /**
@@ -147,7 +154,12 @@ export function decodeTransaction(hexString: string): RawData {
       break;
     case 'type.googleapis.com/protocol.AccountPermissionUpdateContract':
       contractType = ContractType.AccountPermissionUpdate;
+      // TODO : ANALYZE IF WE NEED TO CHANGE THE RETURN ( return as array and exports may not be necesary )
       contract = exports.decodeAccountPermissionUpdateContract(rawTransaction.contracts[0].parameter.value);
+      break;
+    case 'type.googleapis.com/protocol.TriggerSmartContract':
+      contractType = ContractType.TriggerSmartContract;
+      contract = exports.decodeTriggerSmartContract(rawTransaction.contracts[0].parameter.value);
       break;
     default:
       throw new UtilsError('Unsupported contract type');
@@ -172,7 +184,7 @@ export function decodeTransaction(hexString: string): RawData {
  */
 export function decodeRawTransaction(
   hexString: string,
-): { expiration: number; timestamp: number; contracts: Array<any>; blockBytes: string; blockHash: string  } {
+): { expiration: number; timestamp: number; contracts: Array<any>; blockBytes: string; blockHash: string } {
   const bytes = Buffer.from(hexString, 'hex');
 
   let raw;
@@ -243,6 +255,53 @@ export function decodeTransferContract(transferHex: string): TransferContract[] 
           amount: Number(amount),
           owner_address,
           to_address,
+        },
+      },
+    },
+  ];
+}
+
+/**
+ * Deserialize the segment of the txHex corresponding with trigger smart contract
+ *
+ * @param {string} base64
+ * @returns {AccountPermissionUpdateContract}
+ */
+export function decodeTriggerSmartContract(base64: string): TriggerSmartContract[] {
+  let contractCallDecoded;
+  try {
+    contractCallDecoded = protocol.TriggerSmartContract.decode(Buffer.from(base64, 'base64')).toJSON();
+  } catch (e) {
+    throw new UtilsError('There was an error decoding the contract call in the transaction.');
+  }
+
+  if (!contractCallDecoded.ownerAddress) {
+    throw new UtilsError('Owner address does not exist in this contract call.');
+  }
+
+  if (!contractCallDecoded.contractAddress) {
+    throw new UtilsError('Destination contract address does not exist in this contract call.');
+  }
+
+  if (!contractCallDecoded.data) {
+    throw new UtilsError('Data does not exist in this contract call.');
+  }
+
+  // deserialize attributes
+  const owner_address = getBase58AddressFromByteArray(
+    getByteArrayFromHexAddress(Buffer.from(contractCallDecoded.ownerAddress, 'base64').toString('hex')),
+  );
+  const contract_address = getBase58AddressFromByteArray(
+    getByteArrayFromHexAddress(Buffer.from(contractCallDecoded.contractAddress, 'base64').toString('hex')),
+  );
+  const data = contractCallDecoded.data;
+  return [
+    {
+      parameter: {
+        value: {
+          data: data,
+          owner_address,
+          contract_address,
         },
       },
     },

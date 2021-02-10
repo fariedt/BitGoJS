@@ -142,15 +142,11 @@ export class Transaction extends BaseTransaction {
    * Get the signatures associated with this transaction.
    */
   get signature(): string[] {
-    if (!this._transaction) {
-      throw new ParseTransactionError('Empty transaction');
-    }
-    if (this._transaction.signature) {
+    if (this._transaction && this._transaction.signature) {
       return this._transaction.signature;
     }
     return [];
   }
-
   /**
    * Get the time in milliseconds this transaction becomes valid and can be broadcasted to the
    * network.
@@ -172,6 +168,25 @@ export class Transaction extends BaseTransaction {
     // private key with any but the account main address. This is not enough to fail this check, so
     // it is a no-op.
     return true;
+  }
+
+  /**
+   * Sets this transaction
+   *
+   * @param {Transaction} tx transaction
+   */
+  setTransactionReceipt(tx: TransactionReceipt) {
+    this._transaction = tx;
+    this.updateId();
+  }
+
+  /**
+   * Set the transaction type
+   *
+   * @param {TransactionType} transactionType The transaction type to be set
+   */
+  setTransactionType(transactionType: TransactionType): void {
+    this._type = transactionType;
   }
 
   /** @inheritdoc */
