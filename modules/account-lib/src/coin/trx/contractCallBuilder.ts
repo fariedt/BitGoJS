@@ -1,22 +1,27 @@
 import { createHash } from 'crypto';
 import { BaseCoin as CoinConfig } from '@bitgo/statics/';
-import BigNumber from 'bignumber.js';
+import ByteBuffer from 'byte';
 import { TransactionType } from '../baseCoin';
 import { protocol } from '../../../resources/trx/protobuf/tron';
+import { BaseKey } from '../baseCoin/iface';
+import { BuildTransactionError, InvalidParameterValueError, SigningError } from '../baseCoin/errors';
 import { TransactionBuilder } from './transactionBuilder';
 import { Address } from './address';
 import { Transaction } from './transaction';
-import { TransactionReceipt, TriggerSmartContract } from './iface';
+import { Block, TransactionReceipt, TriggerSmartContract } from './iface';
+import { KeyPair } from './keyPair';
 import {
   decodeTransaction,
   getBase58AddressFromHex,
   getByteArrayFromHexAddress,
   getHexAddressFromBase58Address,
+  signTransaction,
 } from './utils';
 
 import ContractType = protocol.Transaction.Contract.ContractType;
 
 export class ContractCallBuilder extends TransactionBuilder {
+  protected _signingKeys: BaseKey[];
   private _toContractAddress: string;
   private _data: string;
   private _ownerAddress: string;
@@ -27,17 +32,46 @@ export class ContractCallBuilder extends TransactionBuilder {
 
   constructor(_coinConfig: Readonly<CoinConfig>) {
     super(_coinConfig);
+    this._signingKeys = [];
+    this.transaction = new Transaction(_coinConfig);
   }
 
   /** @inheritdoc */
   protected async buildImplementation(): Promise<Transaction> {
     this.createTransaction();
-    return super.buildImplementation();
+    /** @inheritdoc */
+    // This method must be extended on child classes
+    if (this._signingKeys.length > 0) {
+      this.applySignatures();
+    }
+
+    if (!this.transaction.id) {
+      throw new BuildTransactionError('A valid transaction must have an id');
+    }
+    return Promise.resolve(this.transaction);
+  }
+
+  /** @inheritdoc */
+  protected signImplementation(key: BaseKey): Transaction {
+    if (this._signingKeys.includes(key)) {
+      throw new SigningError('Duplicated key');
+    }
+    this._signingKeys.push(key);
+
+    // We keep this return for compatibility but is not meant to be use
+    return this.transaction;
   }
 
   /** @inheritdoc */
   initBuilder(tx: Transaction): this {
-    // super.initBuilder(tx);
+    this.transaction = tx;
+    this._signingKeys = [];
+    const rawData = tx.toJson().raw_data;
+    this._refBlockBytes = rawData.ref_block_bytes;
+    this._refBlockHash = rawData.ref_block_hash;
+    this._expiration = rawData.expiration;
+    this._timestamp = rawData.timestamp;
+
     this.transaction.setTransactionType(TransactionType.ContractCall);
     const raw_data = tx.toJson().raw_data;
     const contractCall = raw_data.contract[0] as TriggerSmartContract;
@@ -62,16 +96,23 @@ export class ContractCallBuilder extends TransactionBuilder {
     }
   }
 
-  // /** @inheritdoc */
-  // validateMandatoryFields() {
-  //   super.validateMandatoryFields();
-  //   if (!this._data) {
-  //     throw new BuildTransactionError('Missing parameter: source');
-  //   }
-  //   if (!this._toContractAddress) {
-  //     throw new BuildTransactionError('Missing parameter: to');
-  //   }
-  // }
+  /** @inheritdoc */
+  validateMandatoryFields() {
+    // super.validateMandatoryFields();
+    if (!this._data) {
+      throw new BuildTransactionError('Missing parameter: source');
+    }
+    if (!this._toContractAddress) {
+      throw new BuildTransactionError('Missing parameter: to');
+    }
+    if (!this._refBlockBytes || !this._refBlockHash) {
+      throw new BuildTransactionError('Missing block reference information');
+    }
+
+    if (!this._expiration || !this._timestamp) {
+      throw new BuildTransactionError('Missing expiration or timestamp info');
+    }
+  }
 
   //region Transfer fields
   /**
@@ -109,7 +150,44 @@ export class ContractCallBuilder extends TransactionBuilder {
     return this;
   }
 
+  /**
+   * Set the block values,
+   *
+   * @param {Block} block
+   * @returns {TransferBuilder} the builder with the new parameter set
+   */
+  block(block: Block): this {
+    const array = ByteBuffer.allocate(8)
+      .putLong(block.number)
+      .array();
+
+    this._refBlockHash = Buffer.from(block.hash, 'hex')
+      .slice(8, 16)
+      .toString('hex');
+
+    this._refBlockBytes = array.slice(6, 8).toString('hex');
+    return this;
+  }
+
+  expiration(time: number): this {
+    this._timestamp = this._timestamp || Date.now();
+    this.validateExpirationTime(time);
+    this._expiration = time;
+    return this;
+  }
+
+  timestamp(time: number): this {
+    this._timestamp = time;
+    return this;
+  }
+
   //endregion
+  // TODO: make proper time validation
+  validateExpirationTime(value: number): void {
+    if (value < this._timestamp) {
+      throw new InvalidParameterValueError('Value must be greater than timestamp');
+    }
+  }
 
   private createTransaction(): void {
     const rawDataHex = this.getRawDataHex();
@@ -159,5 +237,37 @@ export class ContractCallBuilder extends TransactionBuilder {
     };
     const rawTx = protocol.Transaction.raw.create(raw);
     return Buffer.from(protocol.Transaction.raw.encode(rawTx).finish()).toString('hex');
+  }
+
+  private applySignatures(): void {
+    if (!this.transaction.inputs) {
+      throw new SigningError('Transaction has no sender');
+    }
+
+    if (!this.transaction.outputs) {
+      throw new SigningError('Transaction has no receiver');
+    }
+    this._signingKeys.forEach(key => this.applySignature(key));
+  }
+
+  private applySignature(key: BaseKey): void {
+    const oldTransaction = this.transaction.toJson();
+    // Store the original signatures to compare them with the new ones in a later step. Signatures
+    // can be undefined if this is the first time the transaction is being signed
+    const oldSignatureCount = oldTransaction.signature ? oldTransaction.signature.length : 0;
+    let signedTransaction: TransactionReceipt;
+    try {
+      const keyPair = new KeyPair({ prv: key.key });
+      // Since the key pair was generated using a private key, it will always have a prv attribute,
+      // hence it is safe to use non-null operator
+      signedTransaction = signTransaction(keyPair.getKeys().prv!, this.transaction.toJson());
+    } catch (e) {
+      throw new SigningError('Failed to sign transaction via helper.');
+    }
+
+    // Ensure that we have more signatures than what we started with
+    if (!signedTransaction.signature || oldSignatureCount >= signedTransaction.signature.length) {
+      throw new SigningError('Transaction signing did not return an additional signature.');
+    }
   }
 }
