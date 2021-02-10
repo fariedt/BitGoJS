@@ -8,7 +8,7 @@ import { BuildTransactionError, InvalidParameterValueError, SigningError } from 
 import { TransactionBuilder } from './transactionBuilder';
 import { Address } from './address';
 import { Transaction } from './transaction';
-import { Block, TransactionReceipt, TriggerSmartContract } from './iface';
+import { Block, Fee, TransactionReceipt, TriggerSmartContract } from './iface';
 import { KeyPair } from './keyPair';
 import {
   decodeTransaction,
@@ -29,6 +29,7 @@ export class ContractCallBuilder extends TransactionBuilder {
   private _refBlockHash: string;
   private _expiration: number;
   private _timestamp: number;
+  private _feeLimit: string;
 
   constructor(_coinConfig: Readonly<CoinConfig>) {
     super(_coinConfig);
@@ -108,10 +109,10 @@ export class ContractCallBuilder extends TransactionBuilder {
     if (!this._refBlockBytes || !this._refBlockHash) {
       throw new BuildTransactionError('Missing block reference information');
     }
-
-    if (!this._expiration || !this._timestamp) {
-      throw new BuildTransactionError('Missing expiration or timestamp info');
-    }
+    // TODO : fix validation and how we handle expiration/timestamp
+    // if (!this._expiration || !this._timestamp) {
+    //   throw new BuildTransactionError('Missing expiration or timestamp info');
+    // }
   }
 
   //region Transfer fields
@@ -181,6 +182,11 @@ export class ContractCallBuilder extends TransactionBuilder {
     return this;
   }
 
+  fee(fee: Fee): this {
+    this._feeLimit = fee.feeLimit; // TODO : fee validation
+    return this;
+  }
+
   //endregion
   // TODO: make proper time validation
   validateExpirationTime(value: number): void {
@@ -216,7 +222,7 @@ export class ContractCallBuilder extends TransactionBuilder {
   private getRawDataHex(): string {
     const rawContract = {
       ownerAddress: getByteArrayFromHexAddress(this._ownerAddress),
-      toContractAddress: getByteArrayFromHexAddress(this._toContractAddress),
+      contractAddress: getByteArrayFromHexAddress(this._toContractAddress),
       data: getByteArrayFromHexAddress(this._data),
     };
     const contractCall = protocol.TriggerSmartContract.fromObject(rawContract);
@@ -234,6 +240,7 @@ export class ContractCallBuilder extends TransactionBuilder {
       expiration: this._expiration,
       timestamp: this._timestamp,
       contract: [txContract],
+      fee_limit: this._feeLimit,
     };
     const rawTx = protocol.Transaction.raw.create(raw);
     return Buffer.from(protocol.Transaction.raw.encode(rawTx).finish()).toString('hex');
@@ -269,5 +276,11 @@ export class ContractCallBuilder extends TransactionBuilder {
     if (!signedTransaction.signature || oldSignatureCount >= signedTransaction.signature.length) {
       throw new SigningError('Transaction signing did not return an additional signature.');
     }
+  }
+
+  /** @inheritdoc */
+  // Specifically, checks hex underlying transaction hashes to correct transaction ID.
+  validateTransaction(transaction: Transaction): void {
+    this.validateMandatoryFields();
   }
 }

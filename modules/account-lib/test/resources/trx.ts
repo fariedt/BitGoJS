@@ -10,6 +10,37 @@ export const FirstExpectedSig =
 export const SecondExpectedSig =
   'f3cabe2f4aed13e2342c78c7bf4626ea36cd6509a44418c24866814d3426703686be9ef21bd993324c520565beee820201f2a50a9ac971732410d3eb69cdb2a600';
 
+// resources for contract calls
+export const participants = {
+  from: {
+    address: 'TGeT2sfMYcjx3ra2HhQUvMyBcVhjBc1Lbk',
+    pk: 'EB94159C7EBC2959720B9F0321849F792B60FCBC7BFA4A9115F7E7A72B9ACE6F',
+  },
+  custodian: {
+    address: 'TVHsEa7nqPebk8fU5yc9ctf8n5X7DZKxkb',
+    pk: '280DA606E22BB0F857753D74B2450D80BBE0B03E70F15873180A932D689CEDD8',
+    bitcoinAddress: '2MytEhVhDLyEzmfeSA7yJ46yf5GhuKZ6gce',
+  },
+  merchant: {
+    address: 'TSQQkC8189ARqHhrpNgPAV1XLH9ouAwdPD',
+    pk: 'C87C22691E6423F48CFA2D2C5F60EB946E0DA6F31AEA3AA414D01B7670AA1092',
+    bitcoinAddress: '2NDjgTKnakBynrwSoyFpSinMsx9PPfubd2e',
+  },
+  multisig: {
+    address: 'TQVxJBfK4JHfJN9sbw4fGSzCLrH6c6c1d5',
+    pk: '0930B5929C4CE938BE6074EAA8B701E9FFF244A09327B6E92A3E875BFA1E7C34',
+  },
+};
+
+export const contractsAddress = {
+  token: 'TUARZw4YBWF1BECZE7v36QZRQy9MFjvjH5',
+  controller: 'TXjhEMM1oHfSdPaXQSZ2V4CmC76v8EL8xo',
+  members: 'TSDWGQigVD8awFNetpfpJLVnkCGByDgdDt',
+  factory: 'TRHsfoMda4ADiSUPnJ9XL3PhyNw6X14UMi',
+};
+
+// end region resources for contract calls
+
 export const UnsignedBuildTransaction = {
   visible: false,
   txID: '80b8b9eaed51c8bba3b49f7f0e7cc5f21ac99a6f3e2893c663b544bf2c695b1d',

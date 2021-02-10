@@ -39,6 +39,7 @@ export interface RawData {
   timestamp: number;
   ref_block_bytes: string; // TODO , remove ? optional
   ref_block_hash: string; // TODO , remove ? optional
+  fee_limit?: number;
   contractType?: ContractType;
   contract: TransferContract[] | AccountPermissionUpdateContract[] | TriggerSmartContract[];
 }
@@ -94,4 +95,8 @@ export interface PermissionKey {
 export interface Block {
   number: number;
   hash: string;
+}
+
+export interface Fee {
+  feeLimit: string; // TODO : validate with Fabi
 }

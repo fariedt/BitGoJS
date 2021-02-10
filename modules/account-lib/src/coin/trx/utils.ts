@@ -172,6 +172,7 @@ export function decodeTransaction(hexString: string): RawData {
     timestamp: rawTransaction.timestamp,
     ref_block_bytes: rawTransaction.blockBytes,
     ref_block_hash: rawTransaction.blockHash,
+    fee_limit: +rawTransaction.fee_limit,
   };
 }
 
@@ -184,7 +185,14 @@ export function decodeTransaction(hexString: string): RawData {
  */
 export function decodeRawTransaction(
   hexString: string,
-): { expiration: number; timestamp: number; contracts: Array<any>; blockBytes: string; blockHash: string } {
+): {
+  expiration: number;
+  timestamp: number;
+  contracts: Array<any>;
+  blockBytes: string;
+  blockHash: string;
+  fee_limit: string;
+} {
   const bytes = Buffer.from(hexString, 'hex');
 
   let raw;
@@ -201,6 +209,7 @@ export function decodeRawTransaction(
     contracts: raw.contract,
     blockBytes: toHex(raw.refBlockBytes),
     blockHash: toHex(raw.refBlockHash),
+    fee_limit: raw.fee_limit,
   };
 }
 

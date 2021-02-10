@@ -78,6 +78,9 @@ export class Transaction extends BaseTransaction {
           value: '0',
         };
         break;
+      case ContractType.TriggerSmartContract:
+        // TODO : add record
+        break;
       default:
         throw new ParseTransactionError('Unsupported contract type');
     }
