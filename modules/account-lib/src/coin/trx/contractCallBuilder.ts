@@ -67,7 +67,14 @@ export class ContractCallBuilder extends TransactionBuilder {
   }
 
   /** @inheritdoc */
-  initBuilder(tx: Transaction): this {
+  initBuilder(rawTransaction: any): this {
+    let tx;
+    if (typeof rawTransaction === 'string') {
+      const transaction = JSON.parse(rawTransaction);
+      tx = new Transaction(this._coinConfig, transaction);
+    } else {
+      tx = new Transaction(this._coinConfig, rawTransaction);
+    }
     this.transaction = tx;
     this._signingKeys = [];
     const rawData = tx.toJson().raw_data;
@@ -76,8 +83,7 @@ export class ContractCallBuilder extends TransactionBuilder {
     this._expiration = rawData.expiration;
     this._timestamp = rawData.timestamp;
     this.transaction.setTransactionType(TransactionType.ContractCall);
-    const raw_data = tx.toJson().raw_data;
-    const contractCall = raw_data.contract[0] as TriggerSmartContract;
+    const contractCall = rawData.contract[0] as TriggerSmartContract;
     this.initContractCall(contractCall);
     return this;
   }
