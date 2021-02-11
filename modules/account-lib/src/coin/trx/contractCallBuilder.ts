@@ -16,11 +16,13 @@ import {
   getByteArrayFromHexAddress,
   getHexAddressFromBase58Address,
   signTransaction,
+  isValidHex,
 } from './utils';
 
 import ContractType = protocol.Transaction.Contract.ContractType;
 import BigNumber from 'bignumber.js';
 
+const DEFAULT_EXPIRATION = new Date().getTime() + 3600000;
 export class ContractCallBuilder extends TransactionBuilder {
   protected _signingKeys: BaseKey[];
   private _toContractAddress: string;
@@ -73,7 +75,6 @@ export class ContractCallBuilder extends TransactionBuilder {
     this._refBlockHash = rawData.ref_block_hash;
     this._expiration = rawData.expiration;
     this._timestamp = rawData.timestamp;
-
     this.transaction.setTransactionType(TransactionType.ContractCall);
     const raw_data = tx.toJson().raw_data;
     const contractCall = raw_data.contract[0] as TriggerSmartContract;
@@ -98,31 +99,12 @@ export class ContractCallBuilder extends TransactionBuilder {
     }
   }
 
-  /** @inheritdoc */
-  validateMandatoryFields() {
-    // super.validateMandatoryFields();
-    if (!this._data) {
-      throw new BuildTransactionError('Missing parameter: source');
-    }
-    if (!this._toContractAddress) {
-      throw new BuildTransactionError('Missing parameter: to');
-    }
-    if (!this._refBlockBytes || !this._refBlockHash) {
-      throw new BuildTransactionError('Missing block reference information');
-    }
-    // VALIDATE MANDATORY FEE
-    // TODO : fix validation and how we handle expiration/timestamp
-    // if (!this._expiration || !this._timestamp) {
-    //   throw new BuildTransactionError('Missing expiration or timestamp info');
-    // }
-  }
-
-  //region Transfer fields
+  //region Contract Call fields
   /**
    * Set the source address,
    *
    * @param {Address} address source account
-   * @returns {TransferBuilder} the builder with the new parameter set
+   * @returns {ContractCallBuilder} the builder with the new parameter set
    */
   source(address: Address): this {
     this.validateAddress(address);
@@ -131,24 +113,27 @@ export class ContractCallBuilder extends TransactionBuilder {
   }
 
   /**
-   * Set the destination address where the funds will be sent,
+   * Set the address of the contract to be called,
    *
-   * @param {Address} address the address to transfer funds to
-   * @returns {TransferBuilder} the builder with the new parameter set
+   * @param {Address} contractAddress the contract address
+   * @returns {ContractCallBuilder} the builder with the new parameter set
    */
-  to(address: Address): this {
-    this.validateAddress(address);
-    this._toContractAddress = getHexAddressFromBase58Address(address.address);
+  to(contractAddress: Address): this {
+    this.validateAddress(contractAddress);
+    this._toContractAddress = getHexAddressFromBase58Address(contractAddress.address);
     return this;
   }
 
   /**
    * Set the data with the method call and parameters
+   *
    * @param {string} data data encoded on hexa
-   * @returns {TransferBuilder} the builder with the new parameter set
+   * @returns {ContractCallBuilder} the builder with the new parameter set
    */
   data(data: string): this {
-    // TODO : validate hexa;
+    if (!isValidHex(data)) {
+      throw new InvalidParameterValueError(data + ' is not a valid hex string.');
+    }
     this._data = data;
     return this;
   }
@@ -156,8 +141,8 @@ export class ContractCallBuilder extends TransactionBuilder {
   /**
    * Set the block values,
    *
-   * @param {Block} block
-   * @returns {TransferBuilder} the builder with the new parameter set
+   * @param {Block} block the number of the block
+   * @returns {ContractCallBuilder} the builder with the new parameter set
    */
   block(block: Block): this {
     const array = ByteBuffer.allocate(8)
@@ -172,6 +157,12 @@ export class ContractCallBuilder extends TransactionBuilder {
     return this;
   }
 
+  /**
+   * Set the expiration time for the transaction, set also timestamp if it was not set previously
+   *
+   * @param {number} time the expiration time in milliseconds
+   * @returns {ContractCallBuilder} the builder with the new parameter set
+   */
   expiration(time: number): this {
     this._timestamp = this._timestamp || Date.now();
     this.validateExpirationTime(time);
@@ -179,23 +170,29 @@ export class ContractCallBuilder extends TransactionBuilder {
     return this;
   }
 
+  /**
+   * Set the timestamp for the transaction
+   *
+   * @param {number} time the timestamp in milliseconds
+   * @returns {ContractCallBuilder} the builder with the new parameter set
+   */
   timestamp(time: number): this {
     this._timestamp = time;
     return this;
   }
 
+  /**
+   * Set the fee limit for the transaction
+   *
+   * @param {Fee} fee the timestamp in milliseconds
+   * @returns {ContractCallBuilder} the builder with the new parameter set
+   */
   fee(fee: Fee): this {
     this._fee = fee; // TODO : fee validation with BigNumber
     return this;
   }
 
   //endregion
-  // TODO: make proper time validation
-  validateExpirationTime(value: number): void {
-    if (value < this._timestamp) {
-      throw new InvalidParameterValueError('Value must be greater than timestamp');
-    }
-  }
 
   private createTransaction(): void {
     const rawDataHex = this.getRawDataHex();
@@ -239,8 +236,8 @@ export class ContractCallBuilder extends TransactionBuilder {
     const raw = {
       refBlockBytes: Buffer.from(this._refBlockBytes, 'hex'),
       refBlockHash: Buffer.from(this._refBlockHash, 'hex'),
-      expiration: this._expiration,
-      timestamp: this._timestamp,
+      expiration: this._expiration || DEFAULT_EXPIRATION,
+      timestamp: this._timestamp || Date.now(),
       contract: [txContract],
       feeLimit: parseInt(this._fee.feeLimit, 10),
     };
@@ -284,5 +281,31 @@ export class ContractCallBuilder extends TransactionBuilder {
   // Specifically, checks hex underlying transaction hashes to correct transaction ID.
   validateTransaction(transaction: Transaction): void {
     this.validateMandatoryFields();
+  }
+
+  /** @inheritdoc */
+  validateMandatoryFields() {
+    if (!this._data) {
+      throw new BuildTransactionError('Missing parameter: source');
+    }
+    if (!this._toContractAddress) {
+      throw new BuildTransactionError('Missing parameter: contract address');
+    }
+    if (!this._refBlockBytes || !this._refBlockHash) {
+      throw new BuildTransactionError('Missing block reference information');
+    }
+    // if (!this._expiration || !this._timestamp) {
+    //   throw new BuildTransactionError('Missing expiration or timestamp info');
+    // }
+    if (!this._fee) {
+      throw new BuildTransactionError('Missing fee');
+    }
+  }
+
+  // TODO: make proper time validation
+  validateExpirationTime(value: number): void {
+    if (value < this._timestamp) {
+      throw new InvalidParameterValueError('Value must be greater than timestamp');
+    }
   }
 }
