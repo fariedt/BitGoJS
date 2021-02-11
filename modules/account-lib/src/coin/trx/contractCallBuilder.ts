@@ -82,6 +82,7 @@ export class ContractCallBuilder extends TransactionBuilder {
     this._refBlockHash = rawData.ref_block_hash;
     this._expiration = rawData.expiration;
     this._timestamp = rawData.timestamp;
+    this._fee = { feeLimit: rawData.fee_limit };
     this.transaction.setTransactionType(TransactionType.ContractCall);
     const contractCall = rawData.contract[0] as TriggerSmartContract;
     this.initContractCall(contractCall);
