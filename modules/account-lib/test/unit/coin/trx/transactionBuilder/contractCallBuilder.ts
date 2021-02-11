@@ -37,8 +37,34 @@ describe('Trx Contract call Builder', () => {
         const txBuilder = initTxBuilder();
         txBuilder.data(MINT_CONFIRM_DATA).sign({ key: participants.custodian.pk });
         const tx = await txBuilder.build();
-        const txBuilder2 = builder.from(tx.toBroadcastFormat());
-        console.log(txBuilder2);
+        builder.from(tx.toBroadcastFormat());
+      });
+      it('a transaction unsigned', async () => {
+        const txBuilder = initTxBuilder();
+        txBuilder.data(MINT_CONFIRM_DATA);
+        const tx = await txBuilder.build();
+        builder.from(tx.toBroadcastFormat());
+      });
+    });
+
+    describe('should build', () => {
+      it('a signed contract call transaction', async () => {
+        const txBuilder = initTxBuilder();
+        txBuilder.data(MINT_CONFIRM_DATA).sign({ key: participants.custodian.pk });
+        const tx = await txBuilder.build();
+        tx.toJson();
+      });
+      it('a transaction from implementation', async () => {
+        const txBuilder = initTxBuilder();
+        txBuilder.data(MINT_CONFIRM_DATA).sign({ key: participants.custodian.pk });
+        const tx = await txBuilder.build();
+        builder.from(tx.toBroadcastFormat());
+      });
+    });
+
+    describe('should fail to build', () => {
+      it('a transaction with same key', async () => {
+        const txBuilder = initTxBuilder();
       });
     });
   });

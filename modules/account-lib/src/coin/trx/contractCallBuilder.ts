@@ -4,7 +4,7 @@ import ByteBuffer from 'byte';
 import { TransactionType } from '../baseCoin';
 import { protocol } from '../../../resources/trx/protobuf/tron';
 import { BaseKey } from '../baseCoin/iface';
-import { BuildTransactionError, InvalidParameterValueError, SigningError } from '../baseCoin/errors';
+import { BuildTransactionError, ExtendTransactionError, InvalidParameterValueError, SigningError } from '../baseCoin/errors';
 import { TransactionBuilder } from './transactionBuilder';
 import { Address } from './address';
 import { Transaction } from './transaction';
@@ -177,6 +177,23 @@ export class ContractCallBuilder extends TransactionBuilder {
     return this;
   }
 
+  /** @inheritdoc */
+  extendValidTo(extensionMs: number): void {
+    if (this.transaction.signature && this.transaction.signature.length > 0) {
+      throw new ExtendTransactionError('Cannot extend a signed transaction');
+    }
+
+    if (extensionMs <= 0) {
+      throw new Error('Value cannot be below zero.');
+    }
+
+    if (this._expiration) {
+      this._expiration = this._expiration + extensionMs;
+    } else {
+      throw new Error('There is not expiration to extend');
+    }
+  }
+
   /**
    * Set the timestamp for the transaction
    *
@@ -258,11 +275,7 @@ export class ContractCallBuilder extends TransactionBuilder {
 
   private applySignatures(): void {
     if (!this.transaction.inputs) {
-      throw new SigningError('Transaction has no sender');
-    }
-
-    if (!this.transaction.outputs) {
-      throw new SigningError('Transaction has no receiver');
+      throw new SigningError('Transaction has no inputs');
     }
     this._signingKeys.forEach(key => this.applySignature(key));
   }

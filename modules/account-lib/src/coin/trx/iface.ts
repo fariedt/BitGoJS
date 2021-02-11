@@ -59,8 +59,6 @@ export interface ValueFields {
 export interface TransferContract {
   parameter: Value;
 }
-
-// TODO : fix duplicated INTERFACES
 export interface TriggerSmartContract {
   parameter: ContractCallValue;
   type?: string;

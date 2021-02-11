@@ -8,7 +8,7 @@ import { TransactionType } from '../baseCoin/';
 import { BaseKey } from '../baseCoin/iface';
 import { ContractType } from './enum';
 import { decodeTransaction } from './utils';
-import { RawData, TransactionReceipt, TransferContract } from './iface';
+import { RawData, TransactionReceipt, TransferContract, TriggerSmartContract } from './iface';
 
 /**
  * Tron transaction model.
@@ -79,7 +79,15 @@ export class Transaction extends BaseTransaction {
         };
         break;
       case ContractType.TriggerSmartContract:
-        // TODO : add record
+        this._type = TransactionType.ContractCall;
+        const contractCallValues = (rawData.contract[0] as TriggerSmartContract).parameter.value;
+        output = {};
+        input = {
+          address: contractCallValues.owner_address,
+          contractAdress: contractCallValues.contract_address,
+          data: contractCallValues.data,
+          value: '0',
+        };
         break;
       default:
         throw new ParseTransactionError('Unsupported contract type');
