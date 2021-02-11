@@ -16,11 +16,11 @@ describe('Trx Contract call Builder', () => {
 
   const initTxBuilder = () => {
     const txBuilder = builder.getContractCallBuilder();
-    txBuilder.source({ address: participants.custodian.address })
-    txBuilder.to({ address: contractsAddress.factory })
-    txBuilder.block({ number: BLOCK_NUMBER, hash: BLOCK_HASH });
-    txBuilder.fee({ feeLimit: FEE_LIMIT });
-    // txBuilder.expiration(EXPIRATION)
+    txBuilder
+      .source({ address: participants.custodian.address })
+      .to({ address: contractsAddress.factory })
+      .block({ number: BLOCK_NUMBER, hash: BLOCK_HASH })
+      .fee({ feeLimit: FEE_LIMIT });
 
     return txBuilder;
   };

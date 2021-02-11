@@ -22,7 +22,7 @@ import {
 import ContractType = protocol.Transaction.Contract.ContractType;
 import BigNumber from 'bignumber.js';
 
-const DEFAULT_EXPIRATION = new Date().getTime() + 3600000;
+const DEFAULT_EXPIRATION = 3600000;
 export class ContractCallBuilder extends TransactionBuilder {
   protected _signingKeys: BaseKey[];
   private _toContractAddress: string;
@@ -191,11 +191,15 @@ export class ContractCallBuilder extends TransactionBuilder {
   /**
    * Set the fee limit for the transaction
    *
-   * @param {Fee} fee the timestamp in milliseconds
+   * @param {Fee} fee the fee limit for the transaction
    * @returns {ContractCallBuilder} the builder with the new parameter set
    */
   fee(fee: Fee): this {
-    this._fee = fee; // TODO : fee validation with BigNumber
+    const feeLimit = new BigNumber(fee.feeLimit);
+    if (feeLimit.isNaN() || feeLimit.isLessThan(0)) {
+      throw new InvalidParameterValueError('Invalid fee limit value');
+    }
+    this._fee = fee;
     return this;
   }
 
@@ -243,7 +247,7 @@ export class ContractCallBuilder extends TransactionBuilder {
     const raw = {
       refBlockBytes: Buffer.from(this._refBlockBytes, 'hex'),
       refBlockHash: Buffer.from(this._refBlockHash, 'hex'),
-      expiration: this._expiration || DEFAULT_EXPIRATION,
+      expiration: this._expiration || Date.now() + DEFAULT_EXPIRATION,
       timestamp: this._timestamp || Date.now(),
       contract: [txContract],
       feeLimit: parseInt(this._fee.feeLimit, 10),
@@ -301,9 +305,6 @@ export class ContractCallBuilder extends TransactionBuilder {
     if (!this._refBlockBytes || !this._refBlockHash) {
       throw new BuildTransactionError('Missing block reference information');
     }
-    // if (!this._expiration || !this._timestamp) {
-    //   throw new BuildTransactionError('Missing expiration or timestamp info');
-    // }
     if (!this._fee) {
       throw new BuildTransactionError('Missing fee');
     }
@@ -312,7 +313,7 @@ export class ContractCallBuilder extends TransactionBuilder {
   // TODO: make proper time validation
   validateExpirationTime(value: number): void {
     if (value < this._timestamp) {
-      throw new InvalidParameterValueError('Value must be greater than timestamp');
+      throw new InvalidParameterValueError('Expiration must be greater than timestamp');
     }
   }
 }
