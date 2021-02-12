@@ -54,7 +54,6 @@ export class ContractCallBuilder extends TransactionBuilder {
       this.applySignatures();
     }
 
-    // TODO: ver si esta validación hace falta
     if (!this.transaction.id) {
       throw new BuildTransactionError('A valid transaction must have an id');
     }
