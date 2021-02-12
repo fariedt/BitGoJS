@@ -7,9 +7,9 @@ export const FEE_LIMIT = '10000';
 export const BLOCK_NUMBER = 51407;
 export const BLOCK_HASH = '0000000000badb0d89177fd84c5d9196021cc1085b9e689b3e9a6195cac8bcae';
 export const MINT_CONFIRM_DATA = '2bf90baa1273140c3e1b5756b242cc88cd7c4dd8a61bf85cb5c1dd5f50ba61e066b53a15';
-export const EXPIRATION = 1612964187000;
+export const EXPIRATION = 60000;
 
-export const participants = {
+export const PARTICIPANTS = {
   from: {
     address: 'TGeT2sfMYcjx3ra2HhQUvMyBcVhjBc1Lbk',
     pk: 'EB94159C7EBC2959720B9F0321849F792B60FCBC7BFA4A9115F7E7A72B9ACE6F',
@@ -30,7 +30,7 @@ export const participants = {
   },
 };
 
-export const contractsAddress = {
+export const CONTRACTS = {
   token: 'TUARZw4YBWF1BECZE7v36QZRQy9MFjvjH5',
   controller: 'TXjhEMM1oHfSdPaXQSZ2V4CmC76v8EL8xo',
   members: 'TSDWGQigVD8awFNetpfpJLVnkCGByDgdDt',

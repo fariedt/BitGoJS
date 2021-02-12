@@ -96,5 +96,5 @@ export interface Block {
 }
 
 export interface Fee {
-  feeLimit: string; // TODO : validate with Fabi
+  feeLimit: string;
 }

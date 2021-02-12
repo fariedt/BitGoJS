@@ -158,7 +158,6 @@ export function decodeTransaction(hexString: string): RawData {
       break;
     case 'type.googleapis.com/protocol.TriggerSmartContract':
       contractType = ContractType.TriggerSmartContract;
-      // TODO : ANALYZE IF WE NEED TO CHANGE THE RETURN ( return as array and exports may not be necesary )
       contract = exports.decodeTriggerSmartContract(rawTransaction.contracts[0].parameter.value);
       break;
     default:

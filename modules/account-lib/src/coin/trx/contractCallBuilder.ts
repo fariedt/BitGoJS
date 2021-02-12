@@ -1,10 +1,16 @@
 import { createHash } from 'crypto';
 import { BaseCoin as CoinConfig } from '@bitgo/statics/';
 import ByteBuffer from 'byte';
+import BigNumber from 'bignumber.js';
 import { TransactionType } from '../baseCoin';
 import { protocol } from '../../../resources/trx/protobuf/tron';
 import { BaseKey } from '../baseCoin/iface';
-import { BuildTransactionError, ExtendTransactionError, InvalidParameterValueError, SigningError } from '../baseCoin/errors';
+import {
+  BuildTransactionError,
+  ExtendTransactionError,
+  InvalidParameterValueError,
+  SigningError,
+} from '../baseCoin/errors';
 import { TransactionBuilder } from './transactionBuilder';
 import { Address } from './address';
 import { Transaction } from './transaction';
@@ -20,7 +26,6 @@ import {
 } from './utils';
 
 import ContractType = protocol.Transaction.Contract.ContractType;
-import BigNumber from 'bignumber.js';
 
 const DEFAULT_EXPIRATION = 3600000;
 export class ContractCallBuilder extends TransactionBuilder {
@@ -49,6 +54,7 @@ export class ContractCallBuilder extends TransactionBuilder {
       this.applySignatures();
     }
 
+    // TODO: ver si esta validación hace falta
     if (!this.transaction.id) {
       throw new BuildTransactionError('A valid transaction must have an id');
     }
@@ -91,7 +97,8 @@ export class ContractCallBuilder extends TransactionBuilder {
 
   /**
    * Initialize the contract call specific data
-   * @param {ValueFields} contractCall object with transfer data
+   *
+   * @param {TriggerSmartContract} contractCall object with transfer data
    */
   protected initContractCall(contractCall: TriggerSmartContract): void {
     const { data, owner_address, contract_address } = contractCall.parameter.value;
@@ -171,6 +178,9 @@ export class ContractCallBuilder extends TransactionBuilder {
    * @returns {ContractCallBuilder} the builder with the new parameter set
    */
   expiration(time: number): this {
+    if (this.transaction.id) {
+      throw new ExtendTransactionError('Expiration is already set, it can only be extended');
+    }
     this._timestamp = this._timestamp || Date.now();
     this.validateExpirationTime(time);
     this._expiration = time;
@@ -323,10 +333,12 @@ export class ContractCallBuilder extends TransactionBuilder {
     }
   }
 
-  // TODO: make proper time validation
   validateExpirationTime(value: number): void {
     if (value < this._timestamp) {
       throw new InvalidParameterValueError('Expiration must be greater than timestamp');
+    }
+    if (value < Date.now()) {
+      throw new InvalidParameterValueError('Expiration must be greater than current time');
     }
   }
 }
