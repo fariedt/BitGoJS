@@ -6,6 +6,10 @@ import { BaseCoin as CoinConfig } from '@bitgo/statics/dist/src/base';
 import { TxData } from './iface';
 import { serializePayload } from '@stacks/transactions/dist/transactions/src/payload';
 import { addressToString } from '@blockstack/stacks-transactions/lib/types';
+import { KeyPair } from './';
+import { SigningError } from '../baseCoin/errors';
+import { Payload } from '@stacks/transactions/dist/transactions/src/payload'
+import { TransactionSigner, createStacksPrivateKey } from '@stacks/transactions';
 
 export class Transaction extends BaseTransaction {
 
@@ -18,7 +22,17 @@ export class Transaction extends BaseTransaction {
 
   /** @inheritdoc */
   canSign(key: BaseKey): boolean {
-    throw new Error('Method not implemented.');
+    return true;
+  }
+
+  async sign(keyPair: KeyPair): Promise<void> {
+    const keys = keyPair.getKeys();
+    if (!keys.prv) {
+      throw new SigningError('Missing private key');
+    }
+    const privKey = createStacksPrivateKey(keys.prv);
+    const signer = new TransactionSigner(this._stxTransaction);
+    signer.signOrigin(privKey);
   }
 
   /** @inheritdoc */
@@ -26,7 +40,6 @@ export class Transaction extends BaseTransaction {
     const result: TxData = {
       id: this._stxTransaction.txid(),
       hash: this.getTxHash(),
-      data: '0x' + serializePayload(this._stxTransaction.payload).toString('hex'),
       fee: new BigNumber(this._stxTransaction.auth.getFee().toString()).toNumber(),
       from: "", // TODO: get sender address from stxTransaction
     };
@@ -51,13 +64,17 @@ export class Transaction extends BaseTransaction {
     return this._stxTransaction
   }
 
+  set stxTransaction(t: StacksTransaction) {
+    this._stxTransaction = t
+  }
+
   /**
   * Sets this transaction body components
   *
   * @param {proto.Transaction} tx body transaction
   */
-  body(tx: StacksTransaction) {
-    this._stxTransaction = tx;
+  payload(payload: Payload) {
+    this._stxTransaction.payload = payload
     this.loadInputsAndOutputs();
   }
 

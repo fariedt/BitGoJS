@@ -1,31 +1,54 @@
 import BigNumber from 'bignumber.js';
 import BigNum from 'bn.js';
 import { BaseTransactionBuilder } from "../baseCoin";
+import { NotImplementedError } from '../baseCoin/errors';
 import { BaseCoin as CoinConfig } from '@bitgo/statics/dist/src/base';
 import { Transaction } from './transaction';
 import { BufferReader, deserializeTransaction, StacksTransaction } from "@stacks/transactions";
 import { BaseAddress, BaseFee, BaseKey } from '../baseCoin/iface';
 import { deserializePayload } from '@stacks/transactions/dist/transactions/src/payload';
+import { KeyPair } from './keyPair'
+import { SignatureData } from './iface'
 
 
 export abstract class TransactionBuilder extends BaseTransactionBuilder {
 
     private _transaction: Transaction
     protected _fee: BaseFee;
+    protected _nonce: number;
     protected _source: BaseAddress;
     protected _memo: string;
-    protected _data: string
+    protected _multiSignerKeyPairs: KeyPair[];
+    protected _signatures: SignatureData[];
+    protected _senderKey: string
 
     constructor(_coinConfig: Readonly<CoinConfig>) {
         super(_coinConfig);
         this.transaction = new Transaction(_coinConfig)
     }
 
+    /**
+ * Initialize the transaction builder fields using the decoded transaction data
+ *
+ * @param {Transaction} tx the transaction data
+ */
+    initBuilder(tx: Transaction): void {
+        this.transaction = tx;
+        // this.transaction.loadPreviousSignatures();
+        const txData = tx.toJson();
+        this.fee({ fee: txData.fee.toString() });
+        this.source({ address: txData.from });
+        if (txData.memo) {
+            this.memo(txData.memo);
+        }
+
+    }
+
     /** @inheritdoc */
     protected fromImplementation(rawTransaction: string): Transaction {
         const tx = new Transaction(this._coinConfig);
         const stackstransaction = deserializeTransaction(BufferReader.fromBuffer(Buffer.from(rawTransaction)))
-        tx.body(stackstransaction)
+        tx.stxTransaction = stackstransaction
         this.initBuilder(tx);
         return this.transaction;
     }
@@ -34,18 +57,8 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
     /** @inheritdoc */
     protected async buildImplementation(): Promise<Transaction> {
         this._transaction.stxTransaction.setFee(new BigNum(this._fee.fee))
-        // this._txBody.transactionID = this.buildTxId();
-        // this._txBody.memo = this._memo;
-        const sTransaction = this.transaction.stxTransaction
-        sTransaction.payload = deserializePayload(BufferReader.fromBuffer(Buffer.from(this._data)))
-        this.transaction.body(sTransaction);
-        // for (const kp of this._multiSignerKeyPairs) {
-        //     await this.transaction.sign(kp);
-        // }
-        // for (const { signature, keyPair } of this._signatures) {
-        //     this.transaction.addSignature(signature, keyPair);
-        // }
-        return this.transaction;
+        this._transaction.stxTransaction.setNonce(new BigNum(this._nonce))
+        return this._transaction;
     }
 
     /** @inheritdoc */
@@ -58,22 +71,7 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
         this._transaction = transaction;
     }
 
-    /**
-   * Initialize the transaction builder fields using the decoded transaction data
-   *
-   * @param {Transaction} tx the transaction data
-   */
-    initBuilder(tx: Transaction): void {
-        this.transaction = tx;
-        // this.transaction.loadPreviousSignatures();
-        const txData = tx.toJson();
-        this.fee({ fee: txData.fee.toString() });
-        this.source({ address: txData.from });
-        if (txData.memo) {
-            this.memo(txData.memo);
-        }
-        this.data(txData.data)
-    }
+
 
     /**
    * Set the transaction fees
@@ -87,8 +85,8 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
         return this;
     }
 
-    data(payload: string): this {
-        this._data = payload
+    senderKey(sKey: string): this {
+        this._senderKey = sKey
         return this
     }
 
@@ -114,6 +112,32 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
         this.validateAddress(address);
         this._source = address;
         return this;
+    }
+
+    // region Validators
+    /** @inheritdoc */
+    validateAddress(address: BaseAddress, addressFormat?: string): void {
+        throw new NotImplementedError('validateAddress not implemented');
+    }
+
+    /** @inheritdoc */
+    validateKey(key: BaseKey): void {
+        throw new NotImplementedError('validateKey not implemented');
+    }
+
+    /** @inheritdoc */
+    validateRawTransaction(rawTransaction: any): void {
+        throw new NotImplementedError('validateRawTransaction not implemented');
+    }
+
+    /** @inheritdoc */
+    validateTransaction(transaction?: Transaction): void {
+        throw new NotImplementedError('validateTransaction not implemented');
+    }
+
+    /** @inheritdoc */
+    validateValue(value: BigNumber): void {
+        throw new NotImplementedError('validateValue not implemented');
     }
 
 }
