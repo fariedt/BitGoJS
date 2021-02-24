@@ -1,3 +1,13 @@
+import {
+  TransactionVersion,
+  addressFromVersionHash,
+  addressHashModeToVersion,
+  addressToString,
+  AddressHashMode,
+} from '@blockstack/stacks-transactions';
+import { StacksTransaction } from '@stacks/transactions';
+
+
 /**
  * Adds "0x" to a given hex string if it does not already start with "0x"
  *
@@ -13,4 +23,36 @@ export function hexPrefixString(hex: string): string {
   } else {
     return '0x' + hex;
   }
+}
+
+/** Encodes a buffer as a `0x` prefixed lower-case hex string. */
+export function bufferToHexPrefixString(buff: Buffer): string {
+  return '0x' + buff.toString('hex');
+}
+
+function getAddressFromPublicKeyHash(
+  publicKeyHash: Buffer,
+  hashMode: AddressHashMode,
+  transactionVersion: TransactionVersion
+): string {
+  const addrVer = addressHashModeToVersion(hashMode, transactionVersion);
+  if (publicKeyHash.length !== 20) {
+    throw new Error('expected 20-byte pubkeyhash');
+  }
+  const addr = addressFromVersionHash(addrVer, publicKeyHash.toString('hex'));
+  const addrString = addressToString(addr);
+  return addrString;
+}
+
+export function getTxSenderAddress(tx: StacksTransaction): string {
+  if (tx.auth.spendingCondition != null) {
+    const txSender = getAddressFromPublicKeyHash(
+      Buffer.from(tx.auth.spendingCondition?.signer),
+      tx.auth.spendingCondition?.hashMode as number,
+      tx.version
+    );
+    return txSender;
+  } else
+    throw new Error('spendingCondition should not be null');
+
 }

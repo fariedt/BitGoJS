@@ -10,6 +10,7 @@ import { KeyPair } from './';
 import { SigningError } from '../baseCoin/errors';
 import { Payload } from '@stacks/transactions/dist/transactions/src/payload'
 import { TransactionSigner, createStacksPrivateKey } from '@stacks/transactions';
+import { getTxSenderAddress, bufferToHexPrefixString } from './utils';
 
 export class Transaction extends BaseTransaction {
 
@@ -41,7 +42,7 @@ export class Transaction extends BaseTransaction {
       id: this._stxTransaction.txid(),
       hash: this.getTxHash(),
       fee: new BigNumber(this._stxTransaction.auth.getFee().toString()).toNumber(),
-      from: "", // TODO: get sender address from stxTransaction
+      from: getTxSenderAddress(this._stxTransaction),
     };
 
     if (this._stxTransaction.payload.payloadType == PayloadType.TokenTransfer) {
@@ -56,8 +57,8 @@ export class Transaction extends BaseTransaction {
     }
     return result;
   }
-  toBroadcastFormat() {
-    throw new Error('Method not implemented.');
+  toBroadcastFormat(): string {
+    return bufferToHexPrefixString(this._stxTransaction.serialize())
   }
 
   get stxTransaction(): StacksTransaction {
@@ -69,9 +70,9 @@ export class Transaction extends BaseTransaction {
   }
 
   /**
-  * Sets this transaction body components
+  * Sets this transaction payload
   *
-  * @param {proto.Transaction} tx body transaction
+  * @param {Payload} payload transaction payload
   */
   payload(payload: Payload) {
     this._stxTransaction.payload = payload
@@ -120,4 +121,6 @@ export class Transaction extends BaseTransaction {
       }];
     }
   }
+
+
 }
