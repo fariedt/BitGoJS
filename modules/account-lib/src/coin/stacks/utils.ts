@@ -45,14 +45,13 @@ function getAddressFromPublicKeyHash(
 }
 
 export function getTxSenderAddress(tx: StacksTransaction): string {
-  if (tx.auth.spendingCondition != null) {
+  if (tx.auth.spendingCondition !== null && tx.auth.spendingCondition !== undefined) {
+    const spendingCondition = tx.auth.spendingCondition;
     const txSender = getAddressFromPublicKeyHash(
-      Buffer.from(tx.auth.spendingCondition?.signer),
-      tx.auth.spendingCondition?.hashMode as number,
-      tx.version
+      Buffer.from(spendingCondition.signer),
+      spendingCondition.hashMode as number,
+      tx.version,
     );
     return txSender;
-  } else
-    throw new Error('spendingCondition should not be null');
-
+  } else throw new Error('spendingCondition should not be null');
 }

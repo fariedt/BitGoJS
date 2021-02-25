@@ -38,22 +38,24 @@ export class Transaction extends BaseTransaction {
 
   /** @inheritdoc */
   toJson() {
+
     const result: TxData = {
       id: this._stxTransaction.txid(),
-      hash: this.getTxHash(),
       fee: new BigNumber(this._stxTransaction.auth.getFee().toString()).toNumber(),
       from: getTxSenderAddress(this._stxTransaction),
+      payload: { payloadType: this._stxTransaction.payload.payloadType }
+
     };
 
     if (this._stxTransaction.payload.payloadType == PayloadType.TokenTransfer) {
       const payload = this._stxTransaction.payload
-      result.memo = payload.memo.content
-      result.to = addressToString({
+      result.payload.memo = payload.memo.content
+      result.payload.to = addressToString({
         type: 0,
         version: payload.recipient.address.version,
         hash160: payload.recipient.address.hash160.toString(),
       })
-      result.amount = payload.amount.toString()
+      result.payload.amount = payload.amount.toString()
     }
     return result;
   }
@@ -80,18 +82,6 @@ export class Transaction extends BaseTransaction {
   }
 
   /**
- * Returns this transaction hash
- *
- * @returns {string} - The transaction hash
- */
-  getTxHash(): string {
-    if (!this._stxTransaction) {
-      throw new Error('Missing transaction');
-    }
-    return this._stxTransaction.serialize().toString('hex')
-  }
-
-  /**
   * Set the transaction type
   *
   * @param {TransactionType} transactionType The transaction type to be set
@@ -107,16 +97,16 @@ export class Transaction extends BaseTransaction {
    */
   loadInputsAndOutputs(): void {
     const txJson = this.toJson();
-    if (txJson.to && txJson.amount) {
+    if (txJson.payload.to && txJson.payload.amount) {
       this._outputs = [{
-        address: txJson.to,
-        value: txJson.amount,
+        address: txJson.payload.to,
+        value: txJson.payload.amount,
         coin: this._coinConfig.name,
       }];
 
       this._inputs = [{
         address: txJson.from,
-        value: txJson.amount,
+        value: txJson.payload.amount,
         coin: this._coinConfig.name,
       }];
     }

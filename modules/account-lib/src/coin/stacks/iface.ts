@@ -1,17 +1,19 @@
+import { PayloadType } from '@stacks/transactions';
 import { KeyPair } from '.';
-
-
 export interface TxData {
     id: string;
-    hash?: string;
     from: string;
     fee: number;
-    memo?: string;
-    to?: string;
-    amount?: string;
+    payload: StacksTransactionPayload
 }
-
 export interface SignatureData {
     signature: string;
     keyPair: KeyPair;
+}
+
+export interface StacksTransactionPayload {
+    payloadType: PayloadType
+    memo?: string;
+    to?: string;
+    amount?: string;
 }

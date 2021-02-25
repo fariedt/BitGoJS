@@ -1,7 +1,14 @@
 import BigNumber from 'bignumber.js';
 import BigNum from 'bn.js';
 import { BaseTransactionBuilder } from "../baseCoin";
-import { NotImplementedError } from '../baseCoin/errors';
+import {
+    BuildTransactionError,
+    InvalidParameterValueError,
+    ParseTransactionError,
+    SigningError,
+    NotImplementedError,
+    InvalidTransactionError
+} from '../baseCoin/errors';
 import { BaseCoin as CoinConfig } from '@bitgo/statics/dist/src/base';
 import { Transaction } from './transaction';
 import { BufferReader, deserializeTransaction, StacksTransaction } from "@stacks/transactions";
@@ -9,6 +16,7 @@ import { BaseAddress, BaseFee, BaseKey } from '../baseCoin/iface';
 import { deserializePayload } from '@stacks/transactions/dist/transactions/src/payload';
 import { KeyPair } from './keyPair'
 import { SignatureData } from './iface'
+import { c32addressDecode, c32address } from 'c32check';
 
 
 export abstract class TransactionBuilder extends BaseTransactionBuilder {
@@ -38,8 +46,8 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
         const txData = tx.toJson();
         this.fee({ fee: txData.fee.toString() });
         this.source({ address: txData.from });
-        if (txData.memo) {
-            this.memo(txData.memo);
+        if (txData.payload.memo) {
+            this.memo(txData.payload.memo);
         }
 
     }
@@ -114,30 +122,80 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
         return this;
     }
 
+    private isValidAddress(stxAddress: string): boolean {
+        try {
+            c32addressDecode(stxAddress);
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
     // region Validators
     /** @inheritdoc */
     validateAddress(address: BaseAddress, addressFormat?: string): void {
-        throw new NotImplementedError('validateAddress not implemented');
+        if (!this.isValidAddress(address.address)) {
+            throw new BuildTransactionError('Invalid address ' + address.address);
+        }
     }
 
     /** @inheritdoc */
     validateKey(key: BaseKey): void {
-        throw new NotImplementedError('validateKey not implemented');
+        const keyPair = new KeyPair({ prv: key.key });
+        if (!keyPair.getKeys().prv) {
+            throw new BuildTransactionError('Invalid key');
+        }
     }
 
     /** @inheritdoc */
     validateRawTransaction(rawTransaction: any): void {
-        throw new NotImplementedError('validateRawTransaction not implemented');
+        if (!rawTransaction) {
+            throw new InvalidTransactionError('Raw transaction is empty');
+        }
+        try {
+            deserializeTransaction(rawTransaction)
+        } catch (e) {
+            throw new ParseTransactionError('There was an error parsing the raw transaction');
+        }
     }
 
     /** @inheritdoc */
     validateTransaction(transaction?: Transaction): void {
-        throw new NotImplementedError('validateTransaction not implemented');
+        this.validateFee();
+        this.validateSource();
     }
 
     /** @inheritdoc */
     validateValue(value: BigNumber): void {
-        throw new NotImplementedError('validateValue not implemented');
+        if (value.isLessThan(0)) {
+            throw new BuildTransactionError('Value cannot be less than zero');
+        }
+    }
+
+    /**
+    * Validates that the fee field is defined
+    */
+    private validateFee(): void {
+        if (this._fee === undefined) {
+            throw new BuildTransactionError('Invalid transaction: missing fee');
+        }
+        if (!this._fee.fee) {
+            throw new BuildTransactionError('Invalid transaction: missing gas limit');
+        }
+        try {
+            this.validateValue(new BigNumber(this._fee.fee));
+        } catch (e) {
+            throw new BuildTransactionError('Invalid gas limit');
+        }
+    }
+
+    /**
+    * Validates that the source field is defined
+    */
+    private validateSource(): void {
+        if (this._source === undefined) {
+            throw new BuildTransactionError('Invalid transaction: missing source');
+        }
+        this.validateAddress(this._source);
     }
 
 }
