@@ -37,6 +37,9 @@ export { Cspr };
 import * as Xrp from './coin/xrp';
 export { Xrp };
 
+import * as Stacks from './coin/stacks';
+export { Stacks };
+
 const coinBuilderMap = {
   trx: Trx.TransactionBuilder,
   ttrx: Trx.TransactionBuilder,
@@ -57,6 +60,7 @@ const coinBuilderMap = {
   tcspr: Cspr.TransactionBuilderFactory,
   xrp: Xrp.TransactionBuilderFactory,
   txrp: Xrp.TransactionBuilderFactory,
+  stacks: Stacks.TransactionBuilderFactory,
 };
 
 /**

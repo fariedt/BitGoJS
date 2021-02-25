@@ -1,12 +1,13 @@
 import {
+  AddressHashMode,
+  StacksTransaction,
   TransactionVersion,
   addressFromVersionHash,
   addressHashModeToVersion,
   addressToString,
-  AddressHashMode,
-} from '@blockstack/stacks-transactions';
-import { StacksTransaction } from '@stacks/transactions';
-
+  validateStacksAddress,
+} from '@stacks/transactions';
+import { BaseUtils } from '../baseCoin/baseUtils';
 
 /**
  * Adds "0x" to a given hex string if it does not already start with "0x"
@@ -25,15 +26,24 @@ export function hexPrefixString(hex: string): string {
   }
 }
 
-/** Encodes a buffer as a `0x` prefixed lower-case hex string. */
+/**
+ * Encodes a buffer as a `0x` prefixed lower-case hex string.
+ *
+ * @param buff
+ */
 export function bufferToHexPrefixString(buff: Buffer): string {
   return '0x' + buff.toString('hex');
 }
 
+/**
+ * @param publicKeyHash
+ * @param hashMode
+ * @param transactionVersion
+ */
 function getAddressFromPublicKeyHash(
   publicKeyHash: Buffer,
   hashMode: AddressHashMode,
-  transactionVersion: TransactionVersion
+  transactionVersion: TransactionVersion,
 ): string {
   const addrVer = addressHashModeToVersion(hashMode, transactionVersion);
   if (publicKeyHash.length !== 20) {
@@ -44,6 +54,9 @@ function getAddressFromPublicKeyHash(
   return addrString;
 }
 
+/**
+ * @param tx
+ */
 export function getTxSenderAddress(tx: StacksTransaction): string {
   if (tx.auth.spendingCondition !== null && tx.auth.spendingCondition !== undefined) {
     const spendingCondition = tx.auth.spendingCondition;
@@ -54,4 +67,11 @@ export function getTxSenderAddress(tx: StacksTransaction): string {
     );
     return txSender;
   } else throw new Error('spendingCondition should not be null');
+}
+
+/**
+ * @param address
+ */
+export function isValidAddress(address: string): boolean {
+  return validateStacksAddress(address);
 }
