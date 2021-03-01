@@ -1,20 +1,21 @@
 import { BaseCoin as CoinConfig } from '@bitgo/statics';
-// import { createTokenTransferPayload } from '@stacks/transactions/dist/transactions/src/payload';
+import { createTokenTransferPayload } from '@stacks/transactions/dist/transactions/src/payload';
 import BigNum from 'bn.js';
 import {
   makeSTXTokenTransfer,
   SignedTokenTransferOptions,
   BufferReader,
   deserializeTransaction,
-  // StacksTransaction,
+  StacksTransaction,
   TransactionSigner,
   createStacksPrivateKey,
 } from '@stacks/transactions';
 import { TransactionType } from '../baseCoin';
-// import { NotImplementedError } from '../baseCoin/errors';
+import { NotImplementedError, InvalidParameterValueError } from '../baseCoin/errors';
 import { BaseKey } from '../baseCoin/iface';
 import { Transaction } from './transaction';
 import { TransactionBuilder } from './transactionBuilder';
+import { isValidAddress, isValidAmount } from './utils'
 
 // import { KeyPair } from './keyPair';
 
@@ -31,7 +32,7 @@ export class TransferBuilder extends TransactionBuilder {
   protected async buildImplementation(): Promise<Transaction> {
     this._options = this.buildTokenTransferOptions();
     this.transaction.setTransactionType(TransactionType.Send);
-    // this.transaction.payload(createTokenTransferPayload(this._toAddress, this._amount, this._memo));
+    this.transaction.payload(createTokenTransferPayload(this._toAddress, this._amount, this._memo));
     this.transaction.stxTransaction = await makeSTXTokenTransfer(this._options);
     return await super.buildImplementation();
   }
@@ -60,5 +61,35 @@ export class TransferBuilder extends TransactionBuilder {
     const signer = new TransactionSigner(this.transaction.stxTransaction);
     signer.signOrigin(privKey);
     return this.transaction;
+  }
+
+  //region Transfer fields
+  /**
+   * Set the destination address where the funds will be sent,
+   * it may take the format `'<shard>.<realm>.<account>'` or `'<account>'`
+   *
+   * @param {string} address the address to transfer funds to
+   * @returns {TransferBuilder} the builder with the new parameter set
+   */
+  to(address: string): this {
+    if (!isValidAddress(address)) {
+      throw new InvalidParameterValueError('Invalid address');
+    }
+    this._toAddress = address;
+    return this;
+  }
+
+  /**
+   * Set the amount to be transferred
+   *
+   * @param {string} amount amount to transfer in tinyBars (there are 100,000,000 tinyBars in one Hbar)
+   * @returns {TransferBuilder} the builder with the new parameter set
+   */
+  amount(amount: string): this {
+    if (!isValidAmount(amount)) {
+      throw new InvalidParameterValueError('Invalid amount');
+    }
+    this._amount = new BigNum(amount);
+    return this;
   }
 }

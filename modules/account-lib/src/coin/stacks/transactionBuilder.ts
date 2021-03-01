@@ -17,6 +17,7 @@ import { deserializePayload } from '@stacks/transactions/dist/transactions/src/p
 import { KeyPair } from './keyPair'
 import { SignatureData } from './iface'
 import { c32addressDecode, c32address } from 'c32check';
+import { isValidAddress } from './utils'
 
 
 export abstract class TransactionBuilder extends BaseTransactionBuilder {
@@ -49,7 +50,6 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
         if (txData.payload.memo) {
             this.memo(txData.payload.memo);
         }
-
     }
 
     /** @inheritdoc */
@@ -79,8 +79,6 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
         this._transaction = transaction;
     }
 
-
-
     /**
    * Set the transaction fees
    *
@@ -109,7 +107,6 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
         return this;
     }
 
-
     /**
      * Set the transaction source
      *
@@ -122,18 +119,10 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
         return this;
     }
 
-    private isValidAddress(stxAddress: string): boolean {
-        try {
-            c32addressDecode(stxAddress);
-            return true;
-        } catch (error) {
-            return false;
-        }
-    }
     // region Validators
     /** @inheritdoc */
     validateAddress(address: BaseAddress, addressFormat?: string): void {
-        if (!this.isValidAddress(address.address)) {
+        if (!isValidAddress(address.address)) {
             throw new BuildTransactionError('Invalid address ' + address.address);
         }
     }

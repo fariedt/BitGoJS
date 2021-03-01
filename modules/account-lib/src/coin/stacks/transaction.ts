@@ -3,7 +3,7 @@ import { PayloadType, StacksTransaction, TransactionSigner, createStacksPrivateK
 import { BaseCoin as CoinConfig } from '@bitgo/statics/dist/src/base';
 // import { serializePayload } from '@stacks/transactions/dist/transactions/src/payload';
 import { addressToString } from '@blockstack/stacks-transactions/lib/types';
-// import { Payload } from '@stacks/transactions/dist/transactions/src/payload';
+import { Payload } from '@stacks/transactions/dist/transactions/src/payload';
 import { SigningError } from '../baseCoin/errors';
 import { BaseKey } from '../baseCoin/iface';
 import { BaseTransaction, TransactionType } from '../baseCoin';
@@ -72,10 +72,10 @@ export class Transaction extends BaseTransaction {
    *
    * @param {Payload} payload transaction payload
    */
-  // payload(payload: Payload) {
-  //   this._stxTransaction.payload = payload;
-  //   this.loadInputsAndOutputs();
-  // }
+  payload(payload: Payload) {
+    this._stxTransaction.payload = payload;
+    this.loadInputsAndOutputs();
+  }
 
   /**
    * Set the transaction type

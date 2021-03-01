@@ -8,6 +8,7 @@ import {
   validateStacksAddress,
 } from '@stacks/transactions';
 import { BaseUtils } from '../baseCoin/baseUtils';
+import BigNumber from 'bignumber.js';
 
 /**
  * Adds "0x" to a given hex string if it does not already start with "0x"
@@ -74,4 +75,18 @@ export function getTxSenderAddress(tx: StacksTransaction): string {
  */
 export function isValidAddress(address: string): boolean {
   return validateStacksAddress(address);
+}
+
+/**
+ * Returns whether or not the string is a valid amount number
+ *
+ * @param {string} amount - the string to validate
+ * @returns {boolean} - the validation result
+ */
+export function isValidAmount(amount: string): boolean {
+  const bigNumberAmount = new BigNumber(amount);
+  return (
+    bigNumberAmount.isInteger() &&
+    bigNumberAmount.isGreaterThanOrEqualTo(0)
+  );
 }
