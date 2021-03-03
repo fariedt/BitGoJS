@@ -1,26 +1,28 @@
 import { BaseCoin as CoinConfig } from '@bitgo/statics';
-import { createTokenTransferPayload } from "@stacks/transactions/dist/payload.esm";
 import BigNum from 'bn.js';
 import {
   makeSTXTokenTransfer,
+  makeUnsignedSTXTokenTransfer,
   SignedTokenTransferOptions,
   BufferReader,
   deserializeTransaction,
   StacksTransaction,
   TransactionSigner,
   createStacksPrivateKey,
+  UnsignedTokenTransferOptions, TokenTransferOptions
 } from '@stacks/transactions';
 import { TransactionType } from '../baseCoin';
-import { NotImplementedError, InvalidParameterValueError } from '../baseCoin/errors';
+import { NotImplementedError, InvalidParameterValueError, InvalidTransactionError } from '../baseCoin/errors';
 import { BaseKey } from '../baseCoin/iface';
 import { Transaction } from './transaction';
 import { TransactionBuilder } from './transactionBuilder';
 import { isValidAddress, isValidAmount } from './utils'
 
+
 // import { KeyPair } from './keyPair';
 
 export class TransferBuilder extends TransactionBuilder {
-  private _options: SignedTokenTransferOptions;
+  private _options: UnsignedTokenTransferOptions;
   private _toAddress: string;
   private _amount: BigNum;
 
@@ -28,20 +30,32 @@ export class TransferBuilder extends TransactionBuilder {
     super(_coinConfig);
   }
 
+  initBuilder(tx: Transaction): void {
+    const txData = tx.toJson();
+    if (txData.payload == undefined) {
+      throw new InvalidTransactionError("payload must not be undefined")
+    }
+    this.to(txData.payload.to!);
+    this.amount(txData.payload.amount!)
+    super.initBuilder(tx)
+
+  }
+
   /** @inheritdoc */
   protected async buildImplementation(): Promise<Transaction> {
     this._options = this.buildTokenTransferOptions();
     this.transaction.setTransactionType(TransactionType.Send);
-    this.transaction.stxTransaction = await makeSTXTokenTransfer(this._options);
+    this.transaction.stxTransaction = await makeUnsignedSTXTokenTransfer(this._options);
     return await super.buildImplementation();
   }
 
-  private buildTokenTransferOptions(): SignedTokenTransferOptions {
-    const options: SignedTokenTransferOptions = {
+  private buildTokenTransferOptions(): UnsignedTokenTransferOptions {
+    const options: UnsignedTokenTransferOptions = {
       recipient: this._toAddress,
       amount: this._amount,
-      senderKey: this._senderKey,
-      memo: this._memo
+      memo: this._memo,
+      publicKey: this._senderPubKey,
+      network: this._network
     };
     return options;
   }
@@ -55,13 +69,13 @@ export class TransferBuilder extends TransactionBuilder {
     return this.transaction;
   }
 
-  /** @inheritdoc */
-  protected signImplementation(key: BaseKey): Transaction {
-    const privKey = createStacksPrivateKey(key.key);
-    const signer = new TransactionSigner(this.transaction.stxTransaction);
-    signer.signOrigin(privKey);
-    return this.transaction;
-  }
+  // /** @inheritdoc */
+  // protected signImplementation(key: BaseKey): Transaction {
+  //   const privKey = createStacksPrivateKey(key.key);
+  //   const signer = new TransactionSigner(this.transaction.stxTransaction);
+  //   signer.signOrigin(privKey);
+  //   return this.transaction;
+  // }
 
   //region Transfer fields
   /**

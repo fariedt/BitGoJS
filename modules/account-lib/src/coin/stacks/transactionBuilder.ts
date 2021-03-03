@@ -12,6 +12,7 @@ import {
 import { BaseCoin as CoinConfig } from '@bitgo/statics/dist/src/base';
 import { Transaction } from './transaction';
 import { BufferReader, deserializeTransaction, StacksTransaction } from "@stacks/transactions";
+import { StacksNetwork, StacksTestnet } from '@stacks/network'
 import { BaseAddress, BaseFee, BaseKey } from '../baseCoin/iface';
 import { KeyPair } from './keyPair'
 import { SignatureData } from './iface'
@@ -28,10 +29,14 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
     protected _memo: string;
     protected _multiSignerKeyPairs: KeyPair[];
     protected _signatures: SignatureData[];
-    protected _senderKey: string
+    protected _senderPubKey: string
+    protected _network: StacksNetwork
 
     constructor(_coinConfig: Readonly<CoinConfig>) {
         super(_coinConfig);
+        this._multiSignerKeyPairs = [];
+        this._signatures = [];
+        this._network = new StacksTestnet()
         this.transaction = new Transaction(_coinConfig)
     }
 
@@ -65,7 +70,22 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
     protected async buildImplementation(): Promise<Transaction> {
         this._transaction.stxTransaction.setFee(new BigNum(this._fee.fee))
         this._transaction.stxTransaction.setNonce(new BigNum(this._nonce))
+        for (const kp of this._multiSignerKeyPairs) {
+            await this.transaction.sign(kp);
+        }
+        this._transaction.loadInputsAndOutputs()
         return this._transaction;
+    }
+
+    /** @inheritdoc */
+    protected signImplementation(key: BaseKey): Transaction {
+        this.checkDuplicatedKeys(key);
+        const signer = new KeyPair({ prv: key.key });
+
+        // Signing the transaction is an operation that relies on all the data being set,
+        // so we set the source here and leave the actual signing for the build step
+        this._multiSignerKeyPairs.push(signer);
+        return this.transaction;
     }
 
     /** @inheritdoc */
@@ -76,6 +96,19 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
     /** @inheritdoc */
     protected set transaction(transaction: Transaction) {
         this._transaction = transaction;
+    }
+
+    /**
+   * Validates that the given key is not already in this._multiSignerKeyPairs
+   *
+   * @param {BaseKey} key - The key to check
+   */
+    private checkDuplicatedKeys(key: BaseKey) {
+        this._multiSignerKeyPairs.forEach(_sourceKeyPair => {
+            if (_sourceKeyPair.getKeys().prv === key.key) {
+                throw new SigningError('Repeated sign: ' + key.key);
+            }
+        });
     }
 
     /**
@@ -90,9 +123,13 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
         return this;
     }
 
-    senderKey(sKey: string): this {
-        this._senderKey = sKey
+    senderPubKey(pubKey: string): this {
+        this._senderPubKey = pubKey
         return this
+    }
+
+    network(stacksNetwork: StacksNetwork) {
+        this._network = stacksNetwork
     }
 
     /**

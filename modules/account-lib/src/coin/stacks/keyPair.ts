@@ -13,7 +13,6 @@ export class KeyPair extends Secp256k1ExtendedKeyPair {
       const seed = randomBytes(DEFAULT_SEED_SIZE_BYTES);
       this.hdNode = HDNode.fromSeedBuffer(seed);
     } else if (isSeed(source)) {
-      console.log('is seed');
       this.hdNode = HDNode.fromSeedBuffer(source.seed);
     } else if (isPrivateKey(source)) {
       this.recordKeysFromPrivateKey(source.prv);
