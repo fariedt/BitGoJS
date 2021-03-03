@@ -322,6 +322,11 @@ class StellarTestnet extends Testnet implements AccountNetwork {
   family = CoinFamily.XLM;
   explorerUrl = 'https://stellar.expert/explorer/testnet/tx/';
 }
+
+class Stacks extends BitcoinLikeMainnet {
+  family = CoinFamily.STACKS;
+  explorerUrl = 'https://explorer.stacks.co/';
+}
 class SUSD extends Mainnet implements AccountNetwork {
   family = CoinFamily.SUSD;
   explorerUrl = undefined;
@@ -401,6 +406,7 @@ export const Networks = {
     litecoin: Object.freeze(new Litecoin()),
     ofc: Object.freeze(new Ofc()),
     rbtc: Object.freeze(new Rbtc()),
+    stacks: Object.freeze(new Stacks()),
     stellar: Object.freeze(new Stellar()),
     susd: Object.freeze(new SUSD()),
     trx: Object.freeze(new Trx()),
