@@ -13,7 +13,6 @@ import { BaseCoin as CoinConfig } from '@bitgo/statics/dist/src/base';
 import { Transaction } from './transaction';
 import { BufferReader, deserializeTransaction, StacksTransaction } from "@stacks/transactions";
 import { BaseAddress, BaseFee, BaseKey } from '../baseCoin/iface';
-import { deserializePayload } from '@stacks/transactions/dist/transactions/src/payload';
 import { KeyPair } from './keyPair'
 import { SignatureData } from './iface'
 import { c32addressDecode, c32address } from 'c32check';

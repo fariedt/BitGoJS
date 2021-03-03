@@ -3,7 +3,7 @@ import * as testData from '../../../resources/stacks/stacks';
 
 import { Stacks } from '../../../../src';
 
-describe('Stacks KeyPair', function() {
+describe('Stacks KeyPair', function () {
   const defaultSeed = { seed: Buffer.alloc(64) };
 
   describe('should create a valid KeyPair', () => {
@@ -11,8 +11,9 @@ describe('Stacks KeyPair', function() {
       const keyPair = new Stacks.KeyPair();
       should.exists(keyPair.getKeys().prv);
       should.exists(keyPair.getKeys().pub);
-      should.equal(keyPair.getKeys().prv!.length, 66);
+      should.equal(keyPair.getKeys().prv!.length, 64);
       should.equal(keyPair.getKeys().pub.length, 66);
+      // TODO:
       // should.equal(keyPair.getKeys().prv!.slice(0, 32), testData.ed25519PrivKeyPrefix);
       // should.equal(keyPair.getKeys().pub.slice(0, 24), testData.ed25519PubKeyPrefix);
     });
@@ -22,13 +23,20 @@ describe('Stacks KeyPair', function() {
       should.equal(keyPair.getKeys().prv, testData.secretKey1);
     });
 
-    it('from a public key', () => {
+    it('from an uncompressed public key', () => {
       const keyPair = new Stacks.KeyPair({ pub: testData.pubKey2 });
-      should.equal(keyPair.getKeys().pub, testData.pubKey2);
+      should.equal(keyPair.getKeys(false).pub, testData.pubKey2);
+      should.equal(keyPair.getKeys(true).pub, testData.pubKey2Compressed);
+    });
+
+    it('from a compressed public key', () => {
+      const keyPair = new Stacks.KeyPair({ pub: testData.pubKey2Compressed });
+      should.equal(keyPair.getKeys(false).pub, testData.pubKey2);
+      should.equal(keyPair.getKeys().pub, testData.pubKey2Compressed);
     });
   });
 
-  describe('should fail to create a KeyPair', function() {
+  describe('should fail to create a KeyPair', function () {
     it('from an invalid seed', () => {
       const seed = { seed: Buffer.alloc(8) }; //  Seed should be 512 bits (64 bytes)
       should.throws(() => new Stacks.KeyPair(seed));
@@ -49,20 +57,20 @@ describe('Stacks KeyPair', function() {
     });
   });
 
-  describe('getAddress', function() {
+  describe('getAddress', function () {
     it('should get an address', () => {
       const keyPair = new Stacks.KeyPair(defaultSeed);
       const address = keyPair.getAddress();
-      address.should.equal('tz2PtJ9zgEgFVTRqy6GXsst54tH3ksEnYvvS');
+      address.should.equal(testData.defaultSeedAddress);
     });
   });
 
-  describe('getKeys', function() {
+  describe('getKeys', function () {
     it('should get private and public keys in the protocol default format', () => {
       const keyPair = new Stacks.KeyPair(defaultSeed);
       const { prv, pub } = keyPair.getKeys();
-      prv!.should.equal('spsk2R6ek35CtfJMt2XHPWgFcf1wUGLK2fKbU3f4hWZNABo1YrrqP7');
-      pub.should.equal('sppk7csjXKT4wvUNCPMfAgZMNuvSjzW4Y2ZAKZEdvyEPtYagE6pCwkw');
+      prv!.should.equal(testData.defaultSeedSecretKey);
+      pub.should.equal(testData.defaultSeedPubKey);
     });
 
     it('should get private and public keys for a random seed', () => {

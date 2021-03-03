@@ -62,7 +62,7 @@ export function getTxSenderAddress(tx: StacksTransaction): string {
   if (tx.auth.spendingCondition !== null && tx.auth.spendingCondition !== undefined) {
     const spendingCondition = tx.auth.spendingCondition;
     const txSender = getAddressFromPublicKeyHash(
-      Buffer.from(spendingCondition.signer),
+      Buffer.from(spendingCondition.signer, 'hex'),
       spendingCondition.hashMode as number,
       tx.version,
     );

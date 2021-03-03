@@ -1,15 +1,15 @@
 import BigNumber from 'bignumber.js';
-import { PayloadType, StacksTransaction, TransactionSigner, createStacksPrivateKey } from '@stacks/transactions';
-import { BaseCoin as CoinConfig } from '@bitgo/statics/dist/src/base';
+import { BufferReader, PayloadType, StacksTransaction, TransactionSigner, createStacksPrivateKey, deserializeTransaction } from '@stacks/transactions';
+import { BaseCoin as CoinConfig } from '@bitgo/statics';
 // import { serializePayload } from '@stacks/transactions/dist/transactions/src/payload';
-import { addressToString } from '@blockstack/stacks-transactions/lib/types';
-import { Payload } from '@stacks/transactions/dist/transactions/src/payload';
+import { addressToString } from '@stacks/transactions';
 import { SigningError } from '../baseCoin/errors';
 import { BaseKey } from '../baseCoin/iface';
 import { BaseTransaction, TransactionType } from '../baseCoin';
 import { TxData } from './iface';
 import { getTxSenderAddress, bufferToHexPrefixString } from './utils';
 import { KeyPair } from './';
+import { publicKeyFromBuffer } from '@stacks/transactions'
 
 export class Transaction extends BaseTransaction {
   private _stxTransaction: StacksTransaction;
@@ -72,8 +72,8 @@ export class Transaction extends BaseTransaction {
    *
    * @param {Payload} payload transaction payload
    */
-  payload(payload: Payload) {
-    this._stxTransaction.payload = payload;
+  fromRawTransaction(rawTransaction: string) {
+    this._stxTransaction = deserializeTransaction(BufferReader.fromBuffer(Buffer.from(rawTransaction.substring(2), 'hex')))
     this.loadInputsAndOutputs();
   }
 

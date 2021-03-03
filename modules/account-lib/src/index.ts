@@ -92,7 +92,7 @@ export function getBuilder(coinName: string): BaseCoin.Interface.BaseBuilder {
  */
 export function register<T extends BaseCoin.BaseTransactionBuilderFactory>(
   coinName: string,
-  builderFactory: { new (_coinConfig: Readonly<CoinConfig>): T },
+  builderFactory: { new(_coinConfig: Readonly<CoinConfig>): T },
 ): T {
   const coinConfig = coins.get(coinName);
   const factory = new builderFactory(coinConfig);

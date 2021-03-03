@@ -1,5 +1,5 @@
 import { BaseCoin as CoinConfig } from '@bitgo/statics';
-import { createTokenTransferPayload } from '@stacks/transactions/dist/transactions/src/payload';
+import { createTokenTransferPayload } from "@stacks/transactions/dist/payload.esm";
 import BigNum from 'bn.js';
 import {
   makeSTXTokenTransfer,
@@ -32,7 +32,6 @@ export class TransferBuilder extends TransactionBuilder {
   protected async buildImplementation(): Promise<Transaction> {
     this._options = this.buildTokenTransferOptions();
     this.transaction.setTransactionType(TransactionType.Send);
-    this.transaction.payload(createTokenTransferPayload(this._toAddress, this._amount, this._memo));
     this.transaction.stxTransaction = await makeSTXTokenTransfer(this._options);
     return await super.buildImplementation();
   }
@@ -42,6 +41,7 @@ export class TransferBuilder extends TransactionBuilder {
       recipient: this._toAddress,
       amount: this._amount,
       senderKey: this._senderKey,
+      memo: this._memo
     };
     return options;
   }
