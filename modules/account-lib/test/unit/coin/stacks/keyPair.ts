@@ -3,7 +3,7 @@ import * as testData from '../../../resources/stacks/stacks';
 
 import { Stacks } from '../../../../src';
 
-describe('Stacks KeyPair', function() {
+describe('Stacks KeyPair', function () {
   const defaultSeed = { seed: Buffer.alloc(64) };
 
   describe('should create a valid KeyPair', () => {
@@ -36,7 +36,7 @@ describe('Stacks KeyPair', function() {
     });
   });
 
-  describe('should fail to create a KeyPair', function() {
+  describe('should fail to create a KeyPair', function () {
     it('from an invalid seed', () => {
       const seed = { seed: Buffer.alloc(8) }; //  Seed should be 512 bits (64 bytes)
       should.throws(() => new Stacks.KeyPair(seed));
@@ -57,7 +57,7 @@ describe('Stacks KeyPair', function() {
     });
   });
 
-  describe('getAddress', function() {
+  describe('getAddress', function () {
     it('should get an address', () => {
       const keyPair = new Stacks.KeyPair(defaultSeed);
       const address = keyPair.getAddress();
@@ -65,7 +65,7 @@ describe('Stacks KeyPair', function() {
     });
   });
 
-  describe('getKeys', function() {
+  describe('getKeys', function () {
     it('should get private and public keys in the protocol default format', () => {
       const keyPair = new Stacks.KeyPair(defaultSeed);
       const { prv, pub } = keyPair.getKeys();

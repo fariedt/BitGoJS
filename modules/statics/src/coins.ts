@@ -37,6 +37,7 @@ export const coins = CoinMap.fromCoins([
   utxo('tdash', 'Testnet Dash', Networks.test.dash, UnderlyingAsset.DASH),
   utxo('zec', 'ZCash', Networks.main.zCash, UnderlyingAsset.ZEC),
   utxo('tzec', 'Testnet ZCash', Networks.test.zCash, UnderlyingAsset.ZEC),
+  utxo('stacks', 'Stacks', Networks.main.stacks, UnderlyingAsset.STACKS),
   account('algo', 'Algorand', Networks.main.algorand, 6, UnderlyingAsset.ALGO, undefined, KeyCurve.Ed25519),
   account('talgo', 'Testnet Algorand', Networks.test.algorand, 6, UnderlyingAsset.ALGO, undefined, KeyCurve.Ed25519),
   account('cspr', 'Casper', Networks.main.casper, 9, UnderlyingAsset.CSPR),
