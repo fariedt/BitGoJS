@@ -1,15 +1,20 @@
 import BigNumber from 'bignumber.js';
-import { BufferReader, PayloadType, StacksTransaction, TransactionSigner, createStacksPrivateKey, deserializeTransaction } from '@stacks/transactions';
+import {
+  BufferReader,
+  PayloadType,
+  StacksTransaction,
+  TransactionSigner,
+  createStacksPrivateKey,
+  deserializeTransaction,
+  addressToString,
+} from '@stacks/transactions';
 import { BaseCoin as CoinConfig } from '@bitgo/statics';
-// import { serializePayload } from '@stacks/transactions/dist/transactions/src/payload';
-import { addressToString } from '@stacks/transactions';
 import { SigningError } from '../baseCoin/errors';
 import { BaseKey } from '../baseCoin/iface';
 import { BaseTransaction, TransactionType } from '../baseCoin';
 import { SignatureData, TxData } from './iface';
 import { getTxSenderAddress, bufferToHexPrefixString, removeHexPrefix } from './utils';
 import { KeyPair } from './';
-import { publicKeyFromBuffer } from '@stacks/transactions'
 
 export class Transaction extends BaseTransaction {
   private _stxTransaction: StacksTransaction;
@@ -35,11 +40,10 @@ export class Transaction extends BaseTransaction {
   }
 
   async signWithSignatures(signature: SignatureData): Promise<void> {
-
     if (!signature) {
       throw new SigningError('Missing signatures');
     }
-    this._stxTransaction = this._stxTransaction.createTxWithSignature(signature.data)
+    this._stxTransaction = this._stxTransaction.createTxWithSignature(signature.data);
   }
 
   /** @inheritdoc */
@@ -78,11 +82,12 @@ export class Transaction extends BaseTransaction {
   /**
    * Sets this transaction payload
    *
+   * @param rawTransaction
    * @param {Payload} payload transaction payload
    */
   fromRawTransaction(rawTransaction: string) {
-    const raw = removeHexPrefix(rawTransaction)
-    this._stxTransaction = deserializeTransaction(BufferReader.fromBuffer(Buffer.from(raw, 'hex')))
+    const raw = removeHexPrefix(rawTransaction);
+    this._stxTransaction = deserializeTransaction(BufferReader.fromBuffer(Buffer.from(raw, 'hex')));
     this.loadInputsAndOutputs();
   }
 

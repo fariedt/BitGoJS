@@ -9,15 +9,16 @@ import {
   StacksTransaction,
   TransactionSigner,
   createStacksPrivateKey,
-  UnsignedTokenTransferOptions, TokenTransferOptions, UnsignedMultiSigTokenTransferOptions
+  UnsignedTokenTransferOptions,
+  TokenTransferOptions,
+  UnsignedMultiSigTokenTransferOptions,
 } from '@stacks/transactions';
 import { TransactionType } from '../baseCoin';
 import { NotImplementedError, InvalidParameterValueError, InvalidTransactionError } from '../baseCoin/errors';
 import { BaseKey } from '../baseCoin/iface';
 import { Transaction } from './transaction';
 import { TransactionBuilder } from './transactionBuilder';
-import { isValidAddress, isValidAmount, removeHexPrefix } from './utils'
-
+import { isValidAddress, isValidAmount, removeHexPrefix } from './utils';
 
 // import { KeyPair } from './keyPair';
 
@@ -33,12 +34,11 @@ export class TransferBuilder extends TransactionBuilder {
   initBuilder(tx: Transaction): void {
     const txData = tx.toJson();
     if (txData.payload == undefined) {
-      throw new InvalidTransactionError("payload must not be undefined")
+      throw new InvalidTransactionError('payload must not be undefined');
     }
     this.to(txData.payload.to!);
-    this.amount(txData.payload.amount!)
-    super.initBuilder(tx)
-
+    this.amount(txData.payload.amount!);
+    super.initBuilder(tx);
   }
 
   /** @inheritdoc */
@@ -54,7 +54,7 @@ export class TransferBuilder extends TransactionBuilder {
       recipient: this._toAddress,
       amount: this._amount,
       memo: this._memo,
-      network: this._network
+      network: this._network,
     };
     if (this._senderPubKey.length == 0) {
       throw new InvalidParameterValueError('supply at least 1 public key');
@@ -64,21 +64,22 @@ export class TransferBuilder extends TransactionBuilder {
       return {
         ...defaultOpts,
         publicKey: this._senderPubKey[0],
-      }
+      };
     } else {
       return {
         ...defaultOpts,
         publicKeys: this._senderPubKey,
-        numSignatures: this._senderPubKey.length
-      }
+        numSignatures: this._senderPubKey.length,
+      };
     }
-
   }
 
   /** @inheritdoc */
   protected fromImplementation(rawTransaction: string): Transaction {
     const tx = new Transaction(this._coinConfig);
-    const stackstransaction = deserializeTransaction(BufferReader.fromBuffer(Buffer.from(removeHexPrefix(rawTransaction))));
+    const stackstransaction = deserializeTransaction(
+      BufferReader.fromBuffer(Buffer.from(removeHexPrefix(rawTransaction))),
+    );
     tx.stxTransaction = stackstransaction;
     this.initBuilder(tx);
     return this.transaction;

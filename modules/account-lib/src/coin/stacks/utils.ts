@@ -7,8 +7,8 @@ import {
   addressToString,
   validateStacksAddress,
 } from '@stacks/transactions';
-import { BaseUtils } from '../baseCoin/baseUtils';
 import BigNumber from 'bignumber.js';
+import { BaseUtils } from '../baseCoin/baseUtils';
 
 /**
  * Adds "0x" to a given hex string if it does not already start with "0x"
@@ -36,11 +36,12 @@ export function bufferToHexPrefixString(buff: Buffer): string {
   return '0x' + buff.toString('hex');
 }
 
+/**
+ * @param hex
+ */
 export function removeHexPrefix(hex: string): string {
-  if (hex.startsWith('0x'))
-    return hex.slice(2)
-  else
-    return hex
+  if (hex.startsWith('0x')) return hex.slice(2);
+  else return hex;
 }
 
 /**
@@ -92,8 +93,5 @@ export function isValidAddress(address: string): boolean {
  */
 export function isValidAmount(amount: string): boolean {
   const bigNumberAmount = new BigNumber(amount);
-  return (
-    bigNumberAmount.isInteger() &&
-    bigNumberAmount.isGreaterThanOrEqualTo(0)
-  );
+  return bigNumberAmount.isInteger() && bigNumberAmount.isGreaterThanOrEqualTo(0);
 }
