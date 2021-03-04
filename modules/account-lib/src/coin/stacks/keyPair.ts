@@ -1,6 +1,7 @@
 import { randomBytes } from 'crypto';
 import { ECPair, HDNode } from '@bitgo/utxo-lib';
-import { getAddressFromPublicKey } from '@stacks/transactions';
+import { ChainID, getAddressFromPublicKey } from '@stacks/transactions';
+import { getDerivationPath } from '@stacks/keychain';
 import { DefaultKeys, isPrivateKey, isPublicKey, isSeed, KeyPairOptions } from '../baseCoin/iface';
 import { Secp256k1ExtendedKeyPair } from '../baseCoin/secp256k1ExtendedKeyPair';
 
@@ -24,6 +25,7 @@ export class KeyPair extends Secp256k1ExtendedKeyPair {
 
     if (this.hdNode) {
       this.keyPair = this.hdNode.keyPair;
+      this.hdNode.derivePath(getDerivationPath(ChainID.Mainnet));
     }
   }
 
