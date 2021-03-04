@@ -6,8 +6,8 @@ import { addressToString } from '@stacks/transactions';
 import { SigningError } from '../baseCoin/errors';
 import { BaseKey } from '../baseCoin/iface';
 import { BaseTransaction, TransactionType } from '../baseCoin';
-import { TxData } from './iface';
-import { getTxSenderAddress, bufferToHexPrefixString } from './utils';
+import { SignatureData, TxData } from './iface';
+import { getTxSenderAddress, bufferToHexPrefixString, removeHexPrefix } from './utils';
 import { KeyPair } from './';
 import { publicKeyFromBuffer } from '@stacks/transactions'
 
@@ -32,6 +32,14 @@ export class Transaction extends BaseTransaction {
     const privKey = createStacksPrivateKey(keys.prv);
     const signer = new TransactionSigner(this._stxTransaction);
     signer.signOrigin(privKey);
+  }
+
+  async signWithSignatures(signature: SignatureData): Promise<void> {
+
+    if (!signature) {
+      throw new SigningError('Missing signatures');
+    }
+    this._stxTransaction = this._stxTransaction.createTxWithSignature(signature.data)
   }
 
   /** @inheritdoc */
@@ -73,7 +81,8 @@ export class Transaction extends BaseTransaction {
    * @param {Payload} payload transaction payload
    */
   fromRawTransaction(rawTransaction: string) {
-    this._stxTransaction = deserializeTransaction(BufferReader.fromBuffer(Buffer.from(rawTransaction.substring(2), 'hex')))
+    const raw = removeHexPrefix(rawTransaction)
+    this._stxTransaction = deserializeTransaction(BufferReader.fromBuffer(Buffer.from(raw, 'hex')))
     this.loadInputsAndOutputs();
   }
 

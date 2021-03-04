@@ -7,8 +7,8 @@ export interface TxData {
     payload: StacksTransactionPayload
 }
 export interface SignatureData {
-    signature: string;
-    keyPair: KeyPair;
+    type: number;
+    data: string;
 }
 
 export interface StacksTransactionPayload {

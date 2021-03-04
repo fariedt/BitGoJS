@@ -3,9 +3,9 @@ import * as Utils from '../../../../src/coin/stacks/utils';
 // import { defaultKeyPairFromPrv, defaultKeyPairFromPub } from '../../../resources/stacks/stacks';
 // import { HashType } from '../../../../src/coin/stacks/iface';
 
-describe('Stacks util library', function() {
-  describe('address', function() {
-    it('should validate addresses', function() {
+describe('Stacks util library', function () {
+  describe('address', function () {
+    it('should validate addresses', function () {
       const validAddresses = [
         'STB44HYPYAT2BB2QE513NSP81HTMYWBJP02HPGK6',
         'ST11NJTTKGVT6D1HY4NJRVQWMQM7TVAR091EJ8P2Y',
@@ -18,7 +18,7 @@ describe('Stacks util library', function() {
       }
     });
 
-    it('should fail to validate invalid addresses', function() {
+    it('should fail to validate invalid addresses', function () {
       const invalidAddresses = [
         'SP244HYPYAT2BB2QE513NSP81HTMYWBJP02HPGK6',
         'ST1T758K6T2YRKG9Q0TJ16B6FP5QQREWZSESRS0PY',
@@ -32,4 +32,14 @@ describe('Stacks util library', function() {
       }
     });
   });
+
+  describe('amount', function () {
+    it('valid amount', function () {
+      Utils.isValidAmount('10').should.be.true()
+    })
+
+    it('invali amount', function () {
+      Utils.isValidAmount('-10').should.be.false()
+    })
+  })
 });

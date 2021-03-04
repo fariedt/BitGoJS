@@ -36,6 +36,13 @@ export function bufferToHexPrefixString(buff: Buffer): string {
   return '0x' + buff.toString('hex');
 }
 
+export function removeHexPrefix(hex: string): string {
+  if (hex.startsWith('0x'))
+    return hex.slice(2)
+  else
+    return hex
+}
+
 /**
  * @param publicKeyHash
  * @param hashMode

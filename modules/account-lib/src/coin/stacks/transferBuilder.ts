@@ -9,20 +9,20 @@ import {
   StacksTransaction,
   TransactionSigner,
   createStacksPrivateKey,
-  UnsignedTokenTransferOptions, TokenTransferOptions
+  UnsignedTokenTransferOptions, TokenTransferOptions, UnsignedMultiSigTokenTransferOptions
 } from '@stacks/transactions';
 import { TransactionType } from '../baseCoin';
 import { NotImplementedError, InvalidParameterValueError, InvalidTransactionError } from '../baseCoin/errors';
 import { BaseKey } from '../baseCoin/iface';
 import { Transaction } from './transaction';
 import { TransactionBuilder } from './transactionBuilder';
-import { isValidAddress, isValidAmount } from './utils'
+import { isValidAddress, isValidAmount, removeHexPrefix } from './utils'
 
 
 // import { KeyPair } from './keyPair';
 
 export class TransferBuilder extends TransactionBuilder {
-  private _options: UnsignedTokenTransferOptions;
+  private _options: UnsignedTokenTransferOptions | UnsignedMultiSigTokenTransferOptions;
   private _toAddress: string;
   private _amount: BigNum;
 
@@ -49,33 +49,40 @@ export class TransferBuilder extends TransactionBuilder {
     return await super.buildImplementation();
   }
 
-  private buildTokenTransferOptions(): UnsignedTokenTransferOptions {
-    const options: UnsignedTokenTransferOptions = {
+  private buildTokenTransferOptions(): UnsignedTokenTransferOptions | UnsignedMultiSigTokenTransferOptions {
+    const defaultOpts: TokenTransferOptions = {
       recipient: this._toAddress,
       amount: this._amount,
       memo: this._memo,
-      publicKey: this._senderPubKey,
       network: this._network
     };
-    return options;
+    if (this._senderPubKey.length == 0) {
+      throw new InvalidParameterValueError('supply at least 1 public key');
+    }
+
+    if (this._senderPubKey.length == 1) {
+      return {
+        ...defaultOpts,
+        publicKey: this._senderPubKey[0],
+      }
+    } else {
+      return {
+        ...defaultOpts,
+        publicKeys: this._senderPubKey,
+        numSignatures: this._senderPubKey.length
+      }
+    }
+
   }
 
   /** @inheritdoc */
-  protected fromImplementation(rawTransaction: any): Transaction {
+  protected fromImplementation(rawTransaction: string): Transaction {
     const tx = new Transaction(this._coinConfig);
-    const stackstransaction = deserializeTransaction(BufferReader.fromBuffer(Buffer.from(rawTransaction)));
+    const stackstransaction = deserializeTransaction(BufferReader.fromBuffer(Buffer.from(removeHexPrefix(rawTransaction))));
     tx.stxTransaction = stackstransaction;
     this.initBuilder(tx);
     return this.transaction;
   }
-
-  // /** @inheritdoc */
-  // protected signImplementation(key: BaseKey): Transaction {
-  //   const privKey = createStacksPrivateKey(key.key);
-  //   const signer = new TransactionSigner(this.transaction.stxTransaction);
-  //   signer.signOrigin(privKey);
-  //   return this.transaction;
-  // }
 
   //region Transfer fields
   /**

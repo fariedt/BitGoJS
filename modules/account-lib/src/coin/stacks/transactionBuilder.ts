@@ -11,13 +11,14 @@ import {
 } from '../baseCoin/errors';
 import { BaseCoin as CoinConfig } from '@bitgo/statics/dist/src/base';
 import { Transaction } from './transaction';
-import { BufferReader, deserializeTransaction, StacksTransaction } from "@stacks/transactions";
+import { BufferReader, deserializeTransaction, emptyMessageSignature, isSingleSig, makeSigHashPreSign, publicKeyFromSignature } from "@stacks/transactions";
 import { StacksNetwork, StacksTestnet } from '@stacks/network'
 import { BaseAddress, BaseFee, BaseKey } from '../baseCoin/iface';
 import { KeyPair } from './keyPair'
 import { SignatureData } from './iface'
 import { c32addressDecode, c32address } from 'c32check';
-import { isValidAddress } from './utils'
+import { isValidAddress, removeHexPrefix } from './utils'
+import { runInThisContext } from 'vm';
 
 
 export abstract class TransactionBuilder extends BaseTransactionBuilder {
@@ -29,13 +30,14 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
     protected _memo: string;
     protected _multiSignerKeyPairs: KeyPair[];
     protected _signatures: SignatureData[];
-    protected _senderPubKey: string
+    protected _senderPubKey: string[]
     protected _network: StacksNetwork
 
     constructor(_coinConfig: Readonly<CoinConfig>) {
         super(_coinConfig);
         this._multiSignerKeyPairs = [];
         this._signatures = [];
+        this._senderPubKey = []
         this._network = new StacksTestnet()
         this.transaction = new Transaction(_coinConfig)
     }
@@ -54,6 +56,16 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
         if (txData.payload.memo) {
             this.memo(txData.payload.memo);
         }
+        // check if it is signed or unsigned tx
+        if (isSingleSig(tx.stxTransaction.auth.spendingCondition!)) {
+            if (tx.stxTransaction.auth.spendingCondition.signature.data == emptyMessageSignature().data) {
+                // unsigned transaction
+            } else {
+                const sigHashPreSign = makeSigHashPreSign(tx.stxTransaction.verifyBegin(), tx.stxTransaction.auth.authType!, new BigNum(this._fee.fee), new BigNum(this._nonce))
+                this._signatures.push(tx.stxTransaction.auth.spendingCondition.signature)
+                this._senderPubKey.push(publicKeyFromSignature(sigHashPreSign, this._signatures[0]))
+            }
+        }
     }
 
     /** @inheritdoc */
@@ -70,8 +82,16 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
     protected async buildImplementation(): Promise<Transaction> {
         this._transaction.stxTransaction.setFee(new BigNum(this._fee.fee))
         this._transaction.stxTransaction.setNonce(new BigNum(this._nonce))
-        for (const kp of this._multiSignerKeyPairs) {
-            await this.transaction.sign(kp);
+        if (this._multiSignerKeyPairs.length == 0) {
+
+            for (const s of this._signatures) {
+                await this.transaction.signWithSignatures(s);
+            }
+
+        } else {
+            for (const kp of this._multiSignerKeyPairs) {
+                await this.transaction.sign(kp);
+            }
         }
         this._transaction.loadInputsAndOutputs()
         return this._transaction;
@@ -123,13 +143,19 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
         return this;
     }
 
-    senderPubKey(pubKey: string): this {
+    senderPubKey(pubKey: string[]): this {
         this._senderPubKey = pubKey
         return this
     }
 
-    network(stacksNetwork: StacksNetwork) {
+    network(stacksNetwork: StacksNetwork): this {
         this._network = stacksNetwork
+        return this
+    }
+
+    nonce(n: number): this {
+        this._nonce = n
+        return this
     }
 
     /**
@@ -172,12 +198,12 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
     }
 
     /** @inheritdoc */
-    validateRawTransaction(rawTransaction: any): void {
+    validateRawTransaction(rawTransaction: string): void {
         if (!rawTransaction) {
             throw new InvalidTransactionError('Raw transaction is empty');
         }
         try {
-            deserializeTransaction(rawTransaction)
+            deserializeTransaction(BufferReader.fromBuffer(Buffer.from(removeHexPrefix(rawTransaction), 'hex')))
         } catch (e) {
             throw new ParseTransactionError('There was an error parsing the raw transaction');
         }

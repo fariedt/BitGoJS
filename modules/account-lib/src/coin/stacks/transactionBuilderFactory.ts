@@ -12,7 +12,7 @@ import {
     NotImplementedError,
     InvalidTransactionError
 } from '../baseCoin/errors';
-import { BufferReader, deserializeTransaction, PayloadType, StacksTransaction } from "@stacks/transactions";
+import { BufferReader, deserializeTransaction, emptyMessageSignature, isSingleSig, PayloadType, StacksTransaction } from "@stacks/transactions";
 
 export class TransactionBuilderFactory extends BaseTransactionBuilderFactory {
     constructor(_coinConfig: Readonly<CoinConfig>) {

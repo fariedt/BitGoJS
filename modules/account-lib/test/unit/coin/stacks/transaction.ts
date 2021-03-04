@@ -7,9 +7,6 @@ import { KeyPair } from '../../../../src/coin/stacks/keyPair';
 describe('Stacks Transaction', () => {
   const coin = coins.get('stacks');
 
-  /**
-   *
-   */
   function getTransaction(): Transaction {
     return new Transaction(coin);
   }

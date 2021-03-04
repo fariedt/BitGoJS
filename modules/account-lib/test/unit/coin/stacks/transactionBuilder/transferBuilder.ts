@@ -3,6 +3,7 @@ import { register } from '../../../../../src/index';
 import { TransactionBuilderFactory } from '../../../../../src/coin/stacks';
 import * as testData from '../../../../resources/stacks/stacks';
 import { TransactionType } from '../../../../../src/coin/baseCoin';
+import { Transaction } from '../../../../../src/coin/stacks/transaction';
 
 describe('STACKS Transfer Builder', () => {
   const factory = register('stacks', TransactionBuilderFactory);
@@ -11,7 +12,7 @@ describe('STACKS Transfer Builder', () => {
     const txBuilder = factory.getTransferBuilder();
     txBuilder.fee({ fee: '180' });
     txBuilder.source({ address: testData.TX_SENDER.address });
-    txBuilder.senderPubKey(testData.TX_SENDER.pub)
+    txBuilder.senderPubKey([testData.TX_SENDER.pub])
     txBuilder.to(testData.TX_RECIEVER.address);
     txBuilder.amount('1000');
     return txBuilder;
@@ -68,10 +69,17 @@ describe('STACKS Transfer Builder', () => {
       it('a non signed transfer transaction from serialized', async () => {
         const builder = factory.from(testData.RAW_TX_UNSIGNED);
         builder.sign({ key: testData.TX_SENDER.prv });
-        builder.senderPubKey(testData.TX_SENDER.pub)
+        builder.senderPubKey([testData.TX_SENDER.pub])
         const tx2 = await builder.build();
         should.deepEqual(tx2.toBroadcastFormat(), testData.SIGNED_TRANSACTION);
         tx2.type.should.equal(TransactionType.Send);
+      });
+
+      it('a signed transfer transaction from serilaized', async () => {
+        const txBuilder = factory.from(testData.SIGNED_TRANSACTION);
+        const tx = await txBuilder.build();
+        should.deepEqual(tx.toBroadcastFormat(), testData.SIGNED_TRANSACTION);
+        tx.type.should.equal(TransactionType.Send);
       });
     });
 
