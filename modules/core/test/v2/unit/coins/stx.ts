@@ -1,8 +1,9 @@
-import * as Promise from 'bluebird';
+import * as PromiseB from 'bluebird';
 import { Stx, Tstx } from '../../../../src/v2/coins/';
 
-const co = Promise.coroutine;
+const co = PromiseB.coroutine;
 import { TestBitGo } from '../../../lib/test_bitgo';
+import { txForExplain, txExplained } from '../../fixtures/coins/stx';
 
 describe('STX:', function() {
   let bitgo;
@@ -41,6 +42,26 @@ describe('STX:', function() {
     badAddresses.map(addr => { basecoin.isValidAddress(addr).should.equal(false); });
     goodAddresses.map(addr => { basecoin.isValidAddress(addr).should.equal(true); });
   }));
+
+  it('should explain a transaction', async function() {
+    const explain = await basecoin.explainTransaction({
+      txHex: txForExplain,
+      feeInfo: { fee: '' },
+    });
+
+    explain.id.should.equal(txExplained.id);
+    explain.outputAmount.should.equal(txExplained.outputAmount);
+    explain.outputs[0].amount.should.equal(txExplained.outputAmount);
+    explain.outputs[0].address.should.equal(txExplained.recipient);
+    // TODO: fix this: where do we store this "34"?  it comes from
+    // the constant MEMO_MAX_LENGTH_BYTES in @stacks/transactions
+    explain.outputs[0].memo.should.equal(txExplained.memo.padEnd(34, '\u0000'));
+    console.log('-------- fee');
+    console.log(explain.fee);
+    explain.fee.should.equal(txExplained.fee);
+    explain.changeAmount.should.equal('0');
+  });
+
 
   describe('Keypairs:', () => {
     it('should generate a keypair from random seed', function() {
