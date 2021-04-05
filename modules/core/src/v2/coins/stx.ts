@@ -17,7 +17,6 @@ import {
 import { NodeCallback } from '../types';
 import { BitGo } from '../../bitgo';
 import { BaseCoin as StaticsBaseCoin, CoinFamily } from '@bitgo/statics';
-import { type } from 'os';
 import BigNumber from 'bignumber.js';
 
 const co = Bluebird.coroutine;
@@ -33,6 +32,10 @@ export interface TransactionFee {
 export interface StxTransactionExplanation extends TransactionExplanation {
   memo?: string;
   type?: number;
+  contractAddress?: string;
+  contractName?: string;
+  contractFunction?: string;
+  contractFunctionArgs?: { type: string; value: string }[];
 }
 export interface ExplainTransactionOptions {
   txHex?: string; // txHex is poorly named here; it is just a wrapped JSON object
@@ -202,35 +205,58 @@ export class Stx extends BaseCoin {
       const tx = yield txBuilder.build();
       const txJson = tx.toJson();
 
-      const outputs: TransactionRecipient[] = [];
-      let outputAmount = '0';
-      let memo: string | undefined;
-
       if (tx.type === accountLib.BaseCoin.TransactionType.Send) {
-        outputs.push({
-          address: txJson.payload.to,
-          amount: txJson.payload.amount,
+        const outputs: TransactionRecipient[] = [
+          {
+            address: txJson.payload.to,
+            amount: txJson.payload.amount,
+            memo: txJson.payload.memo,
+          },
+        ];
+
+        const displayOrder = ['id', 'outputAmount', 'changeAmount', 'outputs', 'changeOutputs', 'fee', 'type'];
+        const explanationResult: StxTransactionExplanation = {
+          displayOrder,
+          id: txJson.id,
+          outputAmount: txJson.payload.amount.toString(),
+          changeAmount: '0',
+          outputs,
+          changeOutputs: [],
+          fee: txJson.fee,
           memo: txJson.payload.memo,
-        });
-        outputAmount = txJson.payload.amount.toString();
-        memo = txJson.payload.memo;
+          type: tx.type,
+        };
+
+        return explanationResult;
       }
 
-      const displayOrder = ['id', 'outputAmount', 'changeAmount', 'outputs', 'changeOutputs', 'fee'];
+      if (tx.type === accountLib.BaseCoin.TransactionType.ContractCall) {
+        const displayOrder = [
+          'id',
+          'fee',
+          'type',
+          'contactAddress',
+          'contactName',
+          'contractFunction',
+          'contractFunctionArgs',
+        ];
+        const explanationResult: StxTransactionExplanation = {
+          displayOrder,
+          id: txJson.id,
+          changeAmount: '0',
+          outputAmount: '',
+          outputs: [],
+          changeOutputs: [],
+          fee: txJson.fee,
+          type: tx.type,
+          contractAddress: txJson.contractAddress,
+          contractName: txJson.contractName,
+          contractFunction: txJson.contractFunction,
+          contractFunctionArgs: txJson.functionArgs,
+        };
 
-      const explanationResult: StxTransactionExplanation = {
-        displayOrder,
-        id: txJson.id,
-        outputAmount: outputAmount,
-        changeAmount: '0',
-        outputs,
-        changeOutputs: [],
-        fee: txJson.fee,
-        memo: memo,
-        type: tx.type,
-      };
-
-      return explanationResult;
+        return explanationResult;
+      }
     })
       .call(this)
       .asCallback(callback);

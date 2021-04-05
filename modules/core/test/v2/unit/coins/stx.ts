@@ -3,7 +3,7 @@ import { Stx, Tstx } from '../../../../src/v2/coins/';
 
 const co = PromiseB.coroutine;
 import { TestBitGo } from '../../../lib/test_bitgo';
-import { txForExplain, txExplained } from '../../fixtures/coins/stx';
+import * as data from '../../fixtures/coins/stx';
 
 describe('STX:', function() {
   let bitgo;
@@ -43,23 +43,36 @@ describe('STX:', function() {
     goodAddresses.map(addr => { basecoin.isValidAddress(addr).should.equal(true); });
   }));
 
-  it('should explain a transaction', async function() {
+  it('should explain a transfer transaction', async function() {
     const explain = await basecoin.explainTransaction({
-      txHex: txForExplain,
+      txHex: data.txForExplainTransfer,
       feeInfo: { fee: '' },
     });
 
-    explain.id.should.equal(txExplained.id);
-    explain.outputAmount.should.equal(txExplained.outputAmount);
-    explain.outputs[0].amount.should.equal(txExplained.outputAmount);
-    explain.outputs[0].address.should.equal(txExplained.recipient);
+    explain.id.should.equal(data.txExplainedTransfer.id);
+    explain.outputAmount.should.equal(data.txExplainedTransfer.outputAmount);
+    explain.outputs[0].amount.should.equal(data.txExplainedTransfer.outputAmount);
+    explain.outputs[0].address.should.equal(data.txExplainedTransfer.recipient);
     // TODO: fix this: where do we store this "34"?  it comes from
     // the constant MEMO_MAX_LENGTH_BYTES in @stacks/transactions
-    explain.outputs[0].memo.should.equal(txExplained.memo.padEnd(34, '\u0000'));
-    console.log('-------- fee');
-    console.log(explain.fee);
-    explain.fee.should.equal(txExplained.fee);
+    explain.outputs[0].memo.should.equal(data.txExplainedTransfer.memo.padEnd(34, '\u0000'));
+    explain.fee.should.equal(data.txExplainedTransfer.fee);
     explain.changeAmount.should.equal('0');
+  });
+
+
+  it('should explain a contract call transaction', async function() {
+    const explain = await basecoin.explainTransaction({
+      txHex: data.txForExplainContract,
+      feeInfo: { fee: '' },
+    });
+
+    explain.id.should.equal(data.txExplainedContract.id);
+    explain.fee.should.equal(data.txExplainedContract.fee);
+    explain.contractAddress.should.equal(data.txExplainedContract.contractAddress);
+    explain.contractName.should.equal(data.txExplainedContract.contractName);
+    explain.contractFunction.should.equal(data.txExplainedContract.functionName);
+    explain.contractFunctionArgs.should.equal(data.txExplainedContract.functionArgs);
   });
 
 
