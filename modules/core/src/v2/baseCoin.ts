@@ -28,8 +28,6 @@ export interface TransactionRecipient {
 
 export interface TransactionFee {
   fee: string;
-  feeRate?: number;
-  size?: number;
 }
 
 export interface TransactionExplanation {

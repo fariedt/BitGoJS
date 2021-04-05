@@ -2,17 +2,44 @@
  * @prettier
  */
 import * as Bluebird from 'bluebird';
-import * as accountLib from '@bitgo/account-lib';
+// import * as accountLib from '@bitgo/account-lib';
+import * as accountLib from '../../../../account-lib';
 import { ECPair } from '@bitgo/utxo-lib';
-import { BaseCoin, KeyPair, SignedTransaction, VerifyAddressOptions, VerifyTransactionOptions } from '../baseCoin';
+import {
+  BaseCoin,
+  KeyPair,
+  SignedTransaction,
+  TransactionExplanation,
+  TransactionRecipient,
+  VerifyAddressOptions,
+  VerifyTransactionOptions,
+} from '../baseCoin';
 import { NodeCallback } from '../types';
 import { BitGo } from '../../bitgo';
 import { BaseCoin as StaticsBaseCoin, CoinFamily } from '@bitgo/statics';
+import { type } from 'os';
+import BigNumber from 'bignumber.js';
 
 const co = Bluebird.coroutine;
 
 interface SupplementGenerateWalletOptions {
   rootPrivateKey?: string;
+}
+
+export interface TransactionFee {
+  fee: string;
+}
+
+export interface StxTransactionExplanation extends TransactionExplanation {
+  memo?: string;
+  type?: number;
+}
+export interface ExplainTransactionOptions {
+  txHex?: string; // txHex is poorly named here; it is just a wrapped JSON object
+  halfSigned?: {
+    txHex: string; // txHex is poorly named here; it is just a wrapped JSON object
+  };
+  feeInfo: TransactionFee;
 }
 
 export class Stx extends BaseCoin {
@@ -45,10 +72,42 @@ export class Stx extends BaseCoin {
     return Math.pow(10, this._staticsCoin.decimalPlaces);
   }
 
-  verifyTransaction(params: VerifyTransactionOptions, callback?: NodeCallback<boolean>): Bluebird<boolean> {
-    // TODO: Implement when available on the SDK.
-    return Bluebird.resolve(true).asCallback(callback);
+  /**
+   * Verify that a transaction prebuild complies with the original intention
+   * @param txParams params object passed to send
+   * @param txPrebuild prebuild object returned by server
+   * @returns {boolean}
+   */
+  public verifyTransaction({ txParams, txPrebuild }: VerifyTransactionOptions, callback): Bluebird<boolean> {
+    const self = this;
+    return co<boolean>(function*() {
+      const explanation = yield self.explainTransaction({
+        txHex: txPrebuild.txHex,
+        feeInfo: { fee: '0' },
+      });
+
+      const output = [...explanation.outputs, ...explanation.changeOutputs][0];
+      const expectedOutput = txParams.recipients && txParams.recipients[0];
+
+      const comparator = (recipient1, recipient2) => {
+        if (recipient1.address !== recipient2.address) {
+          return false;
+        }
+        const amount1 = new BigNumber(recipient1.amount);
+        const amount2 = new BigNumber(recipient2.amount);
+        return amount1.toFixed() === amount2.toFixed();
+      };
+
+      if (!comparator(output, expectedOutput)) {
+        throw new Error('transaction prebuild does not match expected output');
+      }
+
+      return true;
+    })
+      .call(this)
+      .asCallback(callback);
   }
+
   verifyAddress(params: VerifyAddressOptions): boolean {
     // TODO: Implement when available on the SDK.
     throw true;
@@ -115,5 +174,65 @@ export class Stx extends BaseCoin {
   }
   parseTransaction(params: any, callback?: NodeCallback<any>): Bluebird<any> {
     throw new Error('Method not implemented.');
+  }
+
+  /**
+   * Explain a Stacks transaction from txHex
+   * @param params
+   * @param callback
+   */
+  explainTransaction(
+    params: ExplainTransactionOptions,
+    callback?: NodeCallback<StxTransactionExplanation>
+  ): Bluebird<StxTransactionExplanation> {
+    const self = this;
+    return co<TransactionExplanation>(function*() {
+      const txHex = params.txHex || (params.halfSigned && params.halfSigned.txHex);
+      if (!txHex || !params.feeInfo) {
+        throw new Error('missing explain tx parameters');
+      }
+
+      const factory = accountLib.getBuilder(self.getChain());
+      const txBuilder = factory.from(txHex);
+
+      if (!(txBuilder instanceof accountLib.BaseCoin.BaseTransactionBuilder)) {
+        throw new Error('getBuilder() did not return an BaseTransactionBuilder object. Has it been updated?');
+      }
+
+      const tx = yield txBuilder.build();
+      const txJson = tx.toJson();
+
+      const outputs: TransactionRecipient[] = [];
+      let outputAmount = '0';
+      let memo: string | undefined;
+
+      if (tx.type === accountLib.BaseCoin.TransactionType.Send) {
+        outputs.push({
+          address: txJson.payload.to,
+          amount: txJson.payload.amount,
+          memo: txJson.payload.memo,
+        });
+        outputAmount = txJson.payload.amount.toString();
+        memo = txJson.payload.memo;
+      }
+
+      const displayOrder = ['id', 'outputAmount', 'changeAmount', 'outputs', 'changeOutputs', 'fee'];
+
+      const explanationResult: StxTransactionExplanation = {
+        displayOrder,
+        id: txJson.id,
+        outputAmount: outputAmount,
+        changeAmount: '0',
+        outputs,
+        changeOutputs: [],
+        fee: txJson.fee,
+        memo: memo,
+        type: tx.type,
+      };
+
+      return explanationResult;
+    })
+      .call(this)
+      .asCallback(callback);
   }
 }
