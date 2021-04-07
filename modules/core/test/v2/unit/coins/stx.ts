@@ -53,9 +53,7 @@ describe('STX:', function() {
     explain.outputAmount.should.equal(data.txExplainedTransfer.outputAmount);
     explain.outputs[0].amount.should.equal(data.txExplainedTransfer.outputAmount);
     explain.outputs[0].address.should.equal(data.txExplainedTransfer.recipient);
-    // TODO: fix this: where do we store this "34"?  it comes from
-    // the constant MEMO_MAX_LENGTH_BYTES in @stacks/transactions
-    explain.outputs[0].memo.should.equal(data.txExplainedTransfer.memo.padEnd(34, '\u0000'));
+    explain.outputs[0].memo.should.equal(data.txExplainedTransfer.memo);
     explain.fee.should.equal(data.txExplainedTransfer.fee);
     explain.changeAmount.should.equal('0');
   });
