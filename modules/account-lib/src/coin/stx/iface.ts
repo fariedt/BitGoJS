@@ -1,5 +1,4 @@
-import { ClarityAbiType, PayloadType } from '@stacks/transactions';
-import { KeyPair } from '.';
+import { PayloadType } from '@stacks/transactions';
 
 export interface TxData {
   id: string;
@@ -25,7 +24,7 @@ export interface StacksContractPayload {
   contractAddress: string;
   contractName: string;
   functionName: string;
-  functionArgs: ClarityValueJson[]
+  functionArgs: ClarityValueJson[];
 }
 
 export interface ClarityValueJson {
