@@ -2,7 +2,7 @@ import { StacksTestnet } from '@stacks/network';
 import should from 'should';
 import { TransactionType } from '../../../../../src/coin/baseCoin';
 import { SigningError } from '../../../../../src/coin/baseCoin/errors';
-import { TransactionBuilderFactory } from '../../../../../src/coin/stx';
+import { KeyPair, TransactionBuilderFactory } from '../../../../../src/coin/stx';
 import { register } from '../../../../../src/index';
 import * as testData from '../../../../resources/stx/stx';
 
