@@ -1,16 +1,17 @@
-import should from 'should';
 import { StacksTestnet } from '@stacks/network';
-import { register } from '../../../../../src/index';
-import { TransactionBuilderFactory, KeyPair } from '../../../../../src/coin/stx';
-import * as testData from '../../../../resources/stx/stx';
+import should from 'should';
 import { TransactionType } from '../../../../../src/coin/baseCoin';
-import { toHex } from '../../../../../src/coin/hbar/utils';
+import { SigningError } from '../../../../../src/coin/baseCoin/errors';
+import { TransactionBuilderFactory } from '../../../../../src/coin/stx';
+import { register } from '../../../../../src/index';
+import * as testData from '../../../../resources/stx/stx';
 
 describe('Stx Transfer Builder', () => {
   const factory = register('stx', TransactionBuilderFactory);
 
   const initTxBuilder = () => {
     const txBuilder = factory.getTransferBuilder();
+    // console.log('My Log: ', txBuilder);
     txBuilder.fee({ fee: '180' });
     txBuilder.nonce(0);
     txBuilder.to(testData.TX_RECIEVER.address);
@@ -111,6 +112,25 @@ describe('Stx Transfer Builder', () => {
       should.deepEqual(tx.toBroadcastFormat(), testData.MULTI_SIG_SINGED_TRANSACTION);
     });
 
+    it('a signed transaction from a raw transaction', async () => {
+      const builder = factory.getTransferBuilder();
+      builder.from(testData.SIGNED_TRANSACTION);
+      const tx = await builder.build();
+      const txJson = tx.toJson();
+      should.deepEqual(txJson.payload.to, testData.TX_RECIEVER.address);
+      should.deepEqual(txJson.payload.amount, '1000');
+      should.deepEqual(txJson.from, testData.TX_SENDER.address);
+      should.deepEqual(txJson.nonce, 0);
+      should.deepEqual(txJson.fee.toString(), '180');
+      tx.type.should.equal(TransactionType.Send);
+      tx.outputs.length.should.equal(1);
+      tx.outputs[0].address.should.equal(testData.TX_RECIEVER.address);
+      tx.outputs[0].value.should.equal('1000');
+      tx.inputs.length.should.equal(1);
+      tx.inputs[0].address.should.equal(testData.TX_SENDER.address);
+      tx.inputs[0].value.should.equal('1000');
+    });
+
     it('a transfer transaction signed multiple times', async () => {
       const builder = initTxBuilder();
       builder.memo('test memo');
@@ -164,6 +184,135 @@ describe('Stx Transfer Builder', () => {
         should.throws(
           () => builder.sign({ key: 'invalidKey' }),
           e => e.message === 'Unsupported private key',
+        );
+      });
+
+      it('a transfer transaction with an invalid pubKey', () => {
+        const builder = initTxBuilder();
+        should.throws(
+          () => builder.fromPubKey('invalid key'),
+          e => e.message === 'Invalid public key',
+        );
+      });
+
+      // it('validateKey method', () => {
+      //   const builder = initTxBuilder();
+      //   should.throws(
+      //     () => builder.validateKey({ key: testData.prv1 }),
+      //     e => e.message === 'Invalid key',
+      //   );
+      // });
+
+      it('validateRawTransaction empty input', () => {
+        const builder = initTxBuilder();
+        should.throws(
+          () => builder.validateRawTransaction(''),
+          e => e.message === 'Raw transaction is empty',
+        );
+      });
+
+      it('validateRawTransaction invalid input', () => {
+        const builder = initTxBuilder();
+        should.throws(
+          () => builder.validateRawTransaction('Some bad raw transaction'),
+          e => e.message === 'There was an error parsing the raw transaction',
+        );
+      });
+
+      it('transaction with a fee less than 0', () => {
+        const builder = initTxBuilder();
+        should.throws(
+          () => builder.fee({ fee: '-100' }),
+          e => e.message === 'Invalid fee -100',
+        );
+      });
+
+      it('transaction with a missing fee', () => {
+        const builder = factory.getTransferBuilder();
+        should.throws(
+          () => builder.validateTransaction(),
+          e => e.message === 'Invalid transaction: missing fee',
+        );
+      });
+
+      // Invalid fee not possible, unreachable code due to type check in fee
+      it('transaction with an invalid fee', () => {
+        const builder = factory.getTransferBuilder();
+        should.throws(
+          () => builder.fee({ fee: 'asd' }),
+          // e => e.message === 'Invalid fee',
+          e => e.message === 'Invalid fee asd',
+        );
+      });
+
+      it('transaction with a missing nonce', () => {
+        const builder = factory.getTransferBuilder();
+        builder.fee({ fee: '180' });
+        should.throws(
+          () => builder.validateTransaction(),
+          e => e.message === 'Invalid transaction: missing nonce',
+        );
+      });
+
+      // Invalid nonce not possible, unreachable code due to type check in big number
+      it('transaction with an invalid nonce', () => {
+        const builder = factory.getTransferBuilder();
+        builder.fee({ fee: '180' });
+        builder.nonce(-100);
+        should.throws(
+          () => builder.validateTransaction(),
+          e => e.message === 'Invalid nonce -100',
+        );
+      });
+
+      // it('a transfer with an undefined spending condition ', async () => {
+      //   const builder = initTxBuilder();
+      //   try {
+      //     // builder.sign({ key: undefined });
+      //     // const tx = await builder.build();
+      //     // console.log('built', builder);
+      //   } catch (error) {
+      //     console.log('built error', error);
+      //   }
+
+      //   should.throws(
+      //     () => builder.sign({ key: undefined }),
+      //     e => {
+      //       console.log(e);
+      //       return e.message === 'spending condition cannot be undefined';
+      //     },
+      //   );
+      // });
+
+      // it('a transfer transaction with an invalid number of signatures key', async () => {
+      //   const builder = initTxBuilder();
+      //   builder.numberSignatures(2);
+      //   builder.sign({ key: testData.prv1 });
+      //   // const tx = await builder.build();
+      //   // // console.log('success', tx.toJson());
+      //   should.throws(
+      //     async () => await builder.build(),
+      //     e => e.message === 'Invalid number of signers for multi-sig',
+      //   );
+      // });
+
+      it('a transfer transaction with a duplicate key', async () => {
+        const builder = initTxBuilder();
+        builder.network(new StacksTestnet());
+        builder.memo('test memo');
+        builder.numberSignatures(2);
+        builder.sign({ key: testData.prv1 });
+        should.throws(
+          () => builder.sign({ key: testData.prv1 }),
+          e => e.message === `Repeated sign: ${testData.prv1}`,
+        );
+      });
+
+      it('a transfer transaction with an invalid address', () => {
+        const txBuilder = factory.getTransferBuilder();
+        should.throws(
+          () => txBuilder.validateAddress({ address: 'asdsdas' }),
+          e => e.message === 'Invalid address asdsdas',
         );
       });
 

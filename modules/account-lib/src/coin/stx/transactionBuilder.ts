@@ -169,11 +169,12 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
    * @param {BaseKey} key - The key to check
    */
   private checkDuplicatedKeys(key: BaseKey) {
-    this._multiSignerKeyPairs.forEach(_sourceKeyPair => {
-      if (_sourceKeyPair.getKeys().prv === key.key) {
+    // replaced forEach -> Throwing errors in forEach is async
+    for (const _sourceKeyPair of this._multiSignerKeyPairs) {
+      if (_sourceKeyPair.getKeys(_sourceKeyPair.getCompressed()).prv === key.key) {
         throw new SigningError('Repeated sign: ' + key.key);
       }
-    });
+    }
   }
 
   /**
@@ -183,9 +184,17 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
    * @returns {TransactionBuilder} This transaction builder
    */
   fee(fee: BaseFee): this {
-    this.validateValue(new BigNumber(fee.fee));
-    this._fee = fee;
-    return this;
+    try {
+      const number = new BigNumber(fee.fee);
+      if (number.isNaN()) {
+        throw new Error(`Invalid fee ${fee.fee}`);
+      }
+      this.validateValue(number);
+      this._fee = fee;
+      return this;
+    } catch (error) {
+      throw new Error(`Invalid fee ${fee.fee}`);
+    }
   }
 
   network(stacksNetwork: StacksNetwork): this {
@@ -284,11 +293,7 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
     if (this._fee === undefined) {
       throw new BuildTransactionError('Invalid transaction: missing fee');
     }
-    try {
-      this.validateValue(new BigNumber(this._fee.fee));
-    } catch (e) {
-      throw new BuildTransactionError('Invalid fee');
-    }
+    this.validateValue(new BigNumber(this._fee.fee));
   }
 
   /**
