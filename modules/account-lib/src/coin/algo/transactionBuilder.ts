@@ -49,6 +49,19 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
   protected _note?: Uint8Array;
   protected _reKeyTo?: string;
 
+  // the fee is specified as a number here instead of a big number because
+  // the algosdk also specifies it as a number.
+  protected _fee?: number;
+
+  protected _sender?: string;
+  protected _genesisHash?: string;
+  protected _genesisId?: string;
+  protected _firstRound?: number;
+  protected _lastRound?: number;
+  protected _lease?: Uint8Array;
+  protected _note?: Uint8Array;
+  protected _reKeyTo?: string;
+
   constructor(coinConfig: Readonly<CoinConfig>) {
     super(coinConfig);
 
@@ -386,7 +399,7 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
   }
 
   /** @inheritdoc */
-  protected get transaction(): Transaction {
+  protected get transaction(): BaseTransaction {
     return this._transaction;
   }
 
