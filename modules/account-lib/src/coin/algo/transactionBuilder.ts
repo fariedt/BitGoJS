@@ -267,7 +267,7 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
 
     try {
       algosdkTxn = algosdk.decodeUnsignedTransaction(buffer);
-    } catch (err: unknown) {
+    } catch (err) {
       throw new ParseTransactionError(`raw transaction cannot be decoded: ${err}`);
     }
 
@@ -319,7 +319,7 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
   }
 
   /** @inheritdoc */
-  validateTransaction(transaction?: Transaction): void {
+  validateTransaction(transaction?: BaseTransaction): void {
     throw new NotImplementedError('validateTransaction not implemented');
   }
 
@@ -331,7 +331,7 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
   }
 
   /** @inheritdoc */
-  protected get transaction(): Transaction {
+  protected get transaction(): BaseTransaction {
     return this._transaction;
   }
 
