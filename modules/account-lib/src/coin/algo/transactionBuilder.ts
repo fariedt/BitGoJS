@@ -372,7 +372,7 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
   }
 
   /** @inheritdoc */
-  protected get transaction(): Transaction {
+  protected get transaction(): BaseTransaction {
     return this._transaction;
   }
 
