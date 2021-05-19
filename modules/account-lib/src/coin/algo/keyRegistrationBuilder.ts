@@ -18,6 +18,7 @@ export class KeyRegistrationBuilder extends TransactionBuilder {
 
   voteKey(key: string): void {
     this._voteKey = key;
+    // return this;
   }
 
   selectionKey(key: string): void {
