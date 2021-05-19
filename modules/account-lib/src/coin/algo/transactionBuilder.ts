@@ -57,6 +57,20 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
     throw new NotImplementedError('signImplementation not implemented');
   }
 
+  protected async buildImplementation(): Promise<Transaction> {
+    throw new NotImplementedError('buildImplementation not implemented');
+  }
+
+  /** @inheritdoc */
+  protected fromImplementation(rawTransaction: unknown): Transaction {
+    throw new NotImplementedError('fromImplementation not implemented');
+  }
+
+  /** @inheritdoc */
+  protected signImplementation(key: BaseKey): Transaction {
+    throw new NotImplementedError('signImplementation not implemented');
+  }
+
   /**
    * Sets the fee.
    *
