@@ -1,4 +1,6 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import BigNumber from 'bignumber.js';
+import algosdk from 'algosdk';
 import { BaseCoin as CoinConfig } from '@bitgo/statics';
 import { BuildTransactionError, InvalidTransactionError } from '../baseCoin/errors';
 import { TransactionBuilder } from './transactionBuilder';
