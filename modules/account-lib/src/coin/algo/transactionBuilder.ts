@@ -34,26 +34,13 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
   protected _lease?: Uint8Array;
   protected _note?: Uint8Array;
   protected _reKeyTo?: string;
+  protected _suggestedParams: algosdk.SuggestedParams;
 
   constructor(coinConfig: Readonly<CoinConfig>) {
     super(coinConfig);
 
     this._transaction = new Transaction(coinConfig);
     this._keyPairs = [];
-  }
-
-  protected async buildImplementation(): Promise<Transaction> {
-    throw new NotImplementedError('buildImplementation not implemented');
-  }
-
-  /** @inheritdoc */
-  protected fromImplementation(rawTransaction: unknown): Transaction {
-    throw new NotImplementedError('fromImplementation not implemented');
-  }
-
-  /** @inheritdoc */
-  protected signImplementation(key: BaseKey): Transaction {
-    throw new NotImplementedError('signImplementation not implemented');
   }
 
   /**
@@ -88,6 +75,7 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
   sender(sender: BaseAddress): this {
     this.validateAddress(sender);
     this._sender = sender.address;
+    this._transaction.sender(sender.address);
 
     return this;
   }
@@ -302,8 +290,13 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
   protected signImplementation({ key }: BaseKey): Transaction {
     const keypair = new KeyPair({ prv: key });
     this._keyPairs.push(keypair);
+    this._transaction.numberOfSigners(this._keyPairs.length);
 
     return this._transaction;
+  }
+
+  numberOfSigners(num: number): void {
+    this._transaction.numberOfSigners(num);
   }
 
   /**
@@ -340,5 +333,10 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
   /** @inheritdoc */
   protected get transaction(): Transaction {
     return this._transaction;
+  }
+
+  /** @inheritdoc */
+  protected set transaction(transaction: Transaction) {
+    this._transaction = transaction;
   }
 }
