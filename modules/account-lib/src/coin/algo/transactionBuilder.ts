@@ -315,7 +315,7 @@ export abstract class TransactionBuilder extends BaseTransactionBuilder {
 
   /** @inheritdoc */
   validateRawTransaction(rawTransaction: unknown): void {
-    throw new NotImplementedError('validateRawTransaction not implemented');
+    // throw new NotImplementedError('validateRawTransaction not implemented');
   }
 
   /** @inheritdoc */
