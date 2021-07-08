@@ -1,12 +1,15 @@
 import { BaseCoin as CoinConfig } from '@bitgo/statics';
 import { BaseTransactionBuilderFactory } from '../baseCoin';
 import { NotImplementedError } from '../baseCoin/errors';
-import { TransferBuilder } from './transferBuilder';
 import { WalletInitializationBuilder } from './walletInitializationBuilder';
 import { TransactionBuilder } from './transactionBuilder';
 import { Transaction } from './transaction';
+import { EosTransactionBuilder } from './eosTransactionBuilder';
 
 export class TransactionBuilderFactory extends BaseTransactionBuilderFactory {
+  public getTransferBuilder(): EosTransactionBuilder {
+    throw new Error('Method not implemented.');
+  }
   constructor(_coinConfig: Readonly<CoinConfig>) {
     super(_coinConfig);
   }
@@ -21,11 +24,6 @@ export class TransactionBuilderFactory extends BaseTransactionBuilderFactory {
     return TransactionBuilderFactory.initializeBuilder(tx, new WalletInitializationBuilder(this._coinConfig));
   }
 
-  /** @inheritdoc */
-  getTransferBuilder(tx?: Transaction): TransferBuilder {
-    return TransactionBuilderFactory.initializeBuilder(tx, new TransferBuilder(this._coinConfig));
-  }
-
   /**
    * Initialize the builder with the given transaction
    *
@@ -34,9 +32,9 @@ export class TransactionBuilderFactory extends BaseTransactionBuilderFactory {
    * @returns {TransactionBuilder} the builder initialized
    */
   private static initializeBuilder<T extends TransactionBuilder>(tx: Transaction | undefined, builder: T): T {
-    if (tx) {
-      builder.initBuilder(tx);
-    }
+    // if (tx) {
+    //   builder.initBuilder(tx);
+    // }
     return builder;
   }
 }
