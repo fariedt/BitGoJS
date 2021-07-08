@@ -169,4 +169,5 @@ describe('Eos vote producer builder', () => {
       should.doesNotThrow(() => builder.validateTransaction(builder.getTransaction()));
     });
   });
-})});
+})
+});

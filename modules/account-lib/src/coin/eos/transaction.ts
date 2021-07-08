@@ -217,6 +217,17 @@ export class Transaction extends BaseTransaction {
               max_payment: action.data.max_payment,
             },
           });
+          break;
+        case 'newaccount':
+          result.actions.push({
+            data: {
+              creator : action.data.creator,
+              name: action.data.name,
+              owner: action.data.owner,
+              active: action.data.active,
+            },
+          });
+          break;
       }
     });
     return result;

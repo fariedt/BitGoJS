@@ -88,19 +88,6 @@ export const BuyRamBytesActionSchema = joi.object({
   bytes: joi.number().positive().required(),
 });
 
-export const VoteActionSchema = joi.alternatives().try(
-  joi.object({
-    voter: joi.string().pattern(nameRegex).required(),
-    proxy: joi.string().pattern(nameRegex).required().max(0).allow(''),
-    producers: joi.array().items(joi.string().pattern(nameRegex)).required().min(1),
-  }),
-  joi.object({
-    voter: joi.string().pattern(nameRegex).required(),
-    proxy: joi.string().pattern(nameRegex).required(),
-    producers: joi.array().items(joi.string().pattern(nameRegex)).max(0),
-  }),
-);
-
 export const PowerupActionSchema = joi.object({
   payer: joi.string().pattern(nameRegex).required(),
   receiver: joi.string().pattern(nameRegex).required(),
@@ -109,3 +96,48 @@ export const PowerupActionSchema = joi.object({
   cpu_frac: joi.string().required(),
   max_payment: joi.string().required(),
 });
+
+export const VoteActionSchema = 
+  joi.alternatives().try(
+      joi.object({
+        voter: joi.string().pattern(nameRegex).required(),
+        proxy: joi.string().pattern(nameRegex).required().max(0).allow(''),
+        producers: joi
+          .array()
+          .items(joi.string().pattern(nameRegex)).required().min(1)
+      }),
+      joi.object({
+        voter: joi.string().pattern(nameRegex).required(),
+        proxy: joi.string().pattern(nameRegex).required(),
+        producers: joi
+          .array()
+          .items(joi.string().pattern(nameRegex)).max(0)
+      }),
+  )
+
+export const NewAccoutActionSchema = joi.object({
+  creator: joi.string().pattern(nameRegex).required(),
+  name: joi.string().pattern(nameRegex).required(),
+  owner: joi.object({
+    threshold: joi.number().required(),
+    keys: joi
+          .array()
+          .items(joi.object({
+            key: joi.string().required(),
+            weight: joi.number().required(),
+          })).required().min(1),
+    accounts: joi.array().items(joi.string()).required().min(0),
+    waits: joi.array().items(joi.string()).required().min(0),
+  }),
+  active: joi.object({
+    threshold: joi.number().required(),
+    keys: joi
+          .array()
+          .items(joi.object({
+            key: joi.string().required(),
+            weight: joi.number().required(),
+          })).required().min(1),
+    accounts: joi.array().items(joi.string()).required().min(0),
+    waits: joi.array().items(joi.string()).required().min(0),
+  })
+})

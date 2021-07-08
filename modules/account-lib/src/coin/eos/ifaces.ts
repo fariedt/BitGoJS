@@ -4,6 +4,7 @@ export interface RawAbi {
   accountName: string;
   abi?: Uint8Array;
 }
+
 interface AuthKey {
   key: string;
   weight: number;
@@ -121,4 +122,11 @@ export interface TxData {
 export interface Authorization {
   actor: string;
   permission: string;
+}
+
+export interface PublicKey {
+  threshold: number;
+  keys: AuthKey[];
+  accounts: string[],
+  waits: string[]
 }

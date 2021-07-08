@@ -158,3 +158,14 @@ export const voteProducerTransaction = {
   ),
   serializedContextFreeData: null,
 };
+
+export const newAccountTransaction = {
+  signatures: ['SIG_K1_KVgqPFjr1C96K6F7xSBpn91w8BYVyPrb7g5xQ9ogf2XE81B26cYaJpsPTLn5eWJPuDX5jvWk3w2jvcxYT6L7WALrEJ5n4d'],
+  serializedTransaction: new Uint8Array(
+    Buffer.from(
+      '33af835d64006400000000000000010000000000ea305500409e9a2264b89a010000000080d0553400000000a8ed3232660000000080d0553490a7a60819aea697010000000100026b81485873f87210c7e937697545ad3a5fa9c3158647c59cf5ce88b403b9c960010000000100000001000234383875639cef453737d100bf36e0ec05e5701c862f994eaf45c86b122abeb50100000000',
+      'hex',
+    ),
+  ),
+  serializedContextFreeData: null,
+};

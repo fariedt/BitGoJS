@@ -12,6 +12,8 @@ import { TransferActionBuilder } from './TransferActionBuilder';
 import { BuyRamBytesActionBuilder } from './BuyRamBytesActionBuilder';
 import { VoteActionBuilder } from './VoteActionBuilder';
 import { PowerUpActionBuilder } from './powerupActionBuilder';
+import { NewAccountActionBuilder } from './NewAccountActionBuilder';
+
 
 export class EosTransactionBuilder extends TransactionBuilder {
   constructor(_coinConfig: Readonly<CoinConfig>) {
@@ -155,6 +157,19 @@ export class EosTransactionBuilder extends TransactionBuilder {
    */
   voteActionBuilder(account: string, actors: string[]): VoteActionBuilder {
     const builder = new VoteActionBuilder(super.action(account, actors));
+    this.actionBuilders.push(builder);
+    return builder;
+  }
+
+  /**
+   * Initialize building action
+   *
+   * @param {string} account Account name
+   * @param {string[]} actors Authorization field
+   * @returns {NewAccountActionBuilder} builder to construct new account
+   */
+   newAccountActionBuilder(account: string, actors: string[]): NewAccountActionBuilder {
+    const builder = new NewAccountActionBuilder(super.action(account, actors));
     this.actionBuilders.push(builder);
     return builder;
   }
