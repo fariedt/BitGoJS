@@ -36,7 +36,7 @@ export class EosTransactionBuilder extends TransactionBuilder {
    *
    * @param {string} account Account name
    * @param {string[]} actors Authorization field
-   * @returns {BuyRamBytesActionBuilder} builder to construct transfer action
+   * @returns {BuyRamBytesActionBuilder} builder to construct buy ram bytes action
    */
   buyRamBytesActionBuilder(account: string, actors: string[]): BuyRamBytesActionBuilder {
     const builder = new BuyRamBytesActionBuilder(super.action(account, actors));
