@@ -113,6 +113,7 @@ export interface ActionData {
 }
 
 interface jsonAction {
+  name: string;
   data: ActionData;
 }
 
@@ -126,7 +127,7 @@ export interface TxJson {
   actions: jsonAction[];
 }
 
-interface EosTransactionExplanation extends TransactionExplanation {
+export interface EosTransactionExplanation extends TransactionExplanation {
   expiration: string;
   ref_block_num: number;
   ref_block_prefix: number;
@@ -712,6 +713,9 @@ export class Eos extends BaseCoin {
         'expiration',
         'ref_block_num',
         'ref_block_prefix',
+        'max_net_usage_words',
+        'max_cpu_usage_ms',
+        'delay_sec',
       ];
       const explanationResult: EosTransactionExplanation = {
         displayOrder,
