@@ -99,6 +99,7 @@ export interface Action {
 }
 
 interface jsonAction {
+  name: string;
   data: ActionData;
 }
 
