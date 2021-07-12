@@ -1,10 +1,8 @@
 import should from 'should';
 import { coins } from '@bitgo/statics';
-import * as Numeric from 'eosjs/dist/eosjs-numeric';
 import { EosTransactionBuilder } from '../../../../../src/coin/eos/eosTransactionBuilder';
 import * as EosResources from '../../../../resources/eos';
 import { Transaction } from '../../../../../src/coin/eos/transaction';
-import { NameValidationError } from '../../../../../src/coin/eos/errors';
 
 class StubTransactionBuilder extends EosTransactionBuilder {
   getTransaction(): Transaction {
@@ -95,6 +93,7 @@ describe('Eos vote producer builder', () => {
       const json = await tx.toJson();
       should.deepEqual(json.actions[0].data.voter, sender.name);
       should.deepEqual(json.actions[0].data.producers, [receiver1.name, receiver2.name]);
+      should.deepEqual(builder.getTransaction().verifySignature([sender.publicKey]), true);
       should.deepEqual(
         tx.toBroadcastFormat().serializedTransaction,
         EosResources.voteProducerTransaction.serializedTransaction,
@@ -114,11 +113,12 @@ describe('Eos vote producer builder', () => {
         .proxy('')
         .producers([receiver1.name, receiver2.name])
 
-      builder.sign({ key: EosResources.accounts.account3.privateKey });
+      builder.sign({ key: receiver2.privateKey });
       const tx = await builder.build();
       const json = await tx.toJson();
       should.deepEqual(json.actions[0].data.voter, sender.name);
       should.deepEqual(json.actions[0].data.producers, [receiver1.name, receiver2.name]);
+      should.deepEqual(builder.getTransaction().verifySignature([sender.publicKey, receiver2.publicKey]), true);
       should.deepEqual(
         tx.toBroadcastFormat().serializedTransaction,
         EosResources.voteProducerTransaction.serializedTransaction,
@@ -133,6 +133,7 @@ describe('Eos vote producer builder', () => {
       const json = await tx.toJson();
       should.deepEqual(json.actions[0].data.voter, sender.name);
       should.deepEqual(json.actions[0].data.producers, [receiver1.name, receiver2.name]);
+      should.deepEqual(builder.getTransaction().verifySignature([sender.publicKey]), true);
       should.deepEqual(
         tx.toBroadcastFormat().serializedTransaction,
         EosResources.voteProducerTransaction.serializedTransaction,
@@ -147,6 +148,7 @@ describe('Eos vote producer builder', () => {
       const json = await tx.toJson();
       should.deepEqual(json.actions[0].data.voter, sender.name);
       should.deepEqual(json.actions[0].data.producers, [receiver1.name, receiver2.name]);
+      should.deepEqual(builder.getTransaction().verifySignature([sender.publicKey]), true);
       should.deepEqual(
         tx.toBroadcastFormat().serializedTransaction,
         EosResources.voteProducerTransaction.serializedTransaction,

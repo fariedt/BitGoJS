@@ -38,6 +38,7 @@ describe('Eos BuyRamBytes builder', () => {
         should.deepEqual(json.actions[0].data.payer, sender.name);
         should.deepEqual(json.actions[0].data.receiver, 'david');
         should.deepEqual(json.actions[0].data.bytes, 8192);
+        should.deepEqual(builder.getTransaction().verifySignature([sender.publicKey]), true);
         should.deepEqual(
             tx.toBroadcastFormat().serializedTransaction,
             EosResources.buyRamBytesTransaction.serializedTransaction,
@@ -61,9 +62,10 @@ describe('Eos BuyRamBytes builder', () => {
             should.deepEqual(json.actions[0].data.payer, sender.name);
             should.deepEqual(json.actions[0].data.receiver, 'david');
             should.deepEqual(json.actions[0].data.bytes, 8192);
+            should.deepEqual(builder.getTransaction().verifySignature([sender.publicKey, EosResources.accounts.account3.publicKey]), true);
             should.deepEqual(
-            tx.toBroadcastFormat().serializedTransaction,
-            EosResources.buyRamBytesTransaction.serializedTransaction,
+                tx.toBroadcastFormat().serializedTransaction,
+                EosResources.buyRamBytesTransaction.serializedTransaction,
             );
         });
 
@@ -75,6 +77,11 @@ describe('Eos BuyRamBytes builder', () => {
             should.deepEqual(json.actions[0].data.payer, sender.name);
             should.deepEqual(json.actions[0].data.receiver, 'david');
             should.deepEqual(json.actions[0].data.bytes, 8192);
+            should.deepEqual(builder.getTransaction().verifySignature([sender.publicKey]), true);
+            should.deepEqual(
+                tx.toBroadcastFormat().serializedTransaction,
+                EosResources.buyRamBytesTransaction.serializedTransaction,
+            );
         });
 
         it('should build a trx from a raw transaction and sign the tx', async () => {
@@ -86,8 +93,13 @@ describe('Eos BuyRamBytes builder', () => {
             should.deepEqual(json.actions[0].data.payer, sender.name);
             should.deepEqual(json.actions[0].data.receiver, 'david');
             should.deepEqual(json.actions[0].data.bytes, 8192);
+            should.deepEqual(builder.getTransaction().verifySignature([sender.publicKey]), true);
+            should.deepEqual(
+                tx.toBroadcastFormat().serializedTransaction,
+                EosResources.buyRamBytesTransaction.serializedTransaction,
+            );
         });
-        });
+    });
 
         describe('transaction validation', () => {
         it('should validate a normal transaction', () => {
@@ -104,5 +116,5 @@ describe('Eos BuyRamBytes builder', () => {
             .bytes(8192)
             should.doesNotThrow(() => builder.validateTransaction(builder.getTransaction()));
         });
-        });
-        });
+    });
+});

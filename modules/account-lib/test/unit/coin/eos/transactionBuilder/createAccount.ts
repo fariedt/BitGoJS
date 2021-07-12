@@ -60,6 +60,7 @@ describe('Eos create new account builder', () => {
         const formattedKey = Numeric.stringToPublicKey(json.actions[0].data.owner.keys[0].key).data;
         const expectedFormattedKey = Numeric.stringToPublicKey(user1.publicKey).data;
         should.deepEqual(formattedKey, expectedFormattedKey);
+        should.deepEqual(builder.getTransaction().verifySignature([user1.publicKey]), true);
         should.deepEqual(
           tx.toBroadcastFormat().serializedTransaction,
           EosResources.newAccountTransaction.serializedTransaction,
@@ -87,6 +88,7 @@ describe('Eos create new account builder', () => {
       const formattedKey = Numeric.stringToPublicKey(json.actions[0].data.owner.keys[0].key).data;
       const expectedFormattedKey = Numeric.stringToPublicKey(user1.publicKey).data;
       should.deepEqual(formattedKey, expectedFormattedKey);
+      should.deepEqual(builder.getTransaction().verifySignature([user1.publicKey, user3.publicKey]), true);
       should.deepEqual(
         tx.toBroadcastFormat().serializedTransaction,
         EosResources.newAccountTransaction.serializedTransaction,
@@ -121,6 +123,7 @@ describe('Eos create new account builder', () => {
         const formattedKey = Numeric.stringToPublicKey(json.actions[0].data.owner.keys[0].key).data;
         const expectedFormattedKey = Numeric.stringToPublicKey(user1.publicKey).data;
         should.deepEqual(formattedKey, expectedFormattedKey);
+        should.deepEqual(builder.getTransaction().verifySignature([user1.publicKey]), true);
         should.deepEqual(
           tx.toBroadcastFormat().serializedTransaction,
           EosResources.newAccountTransaction.serializedTransaction,
