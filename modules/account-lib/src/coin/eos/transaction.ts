@@ -36,7 +36,36 @@ export class Transaction extends BaseTransaction {
     const txHex = Buffer.from(this._signedTransaction.serializedTransaction);
     keys.forEach((key) => {
       const signature = ecc.Signature.sign(txHex, key.getKeys().prv).toString();
+      this._signatures.push(signature);
       this._signedTransaction?.signatures.push(signature);
+    });
+  }
+
+  async loadInputsAndOutputs(): Promise<void> {
+    const txJson = await this.toJson();
+    const actions = txJson.actions;
+    actions.forEach((action) => {
+      if (action.name === 'transfer') {
+        const to = action.data.to;
+        const from = action.data.from;
+        const amount = action.data.quantity;
+
+        if (!to || !from || !amount) {
+          throw new InvalidTransactionError('Missing required fields');
+        }
+
+        this._outputs.push({
+          address: to,
+          value: amount,
+          coin: this._coinConfig.name,
+        });
+
+        this._inputs.push({
+          address: from,
+          value: amount,
+          coin: this._coinConfig.name,
+        });
+      }
     });
   }
 

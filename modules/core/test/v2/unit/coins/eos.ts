@@ -191,9 +191,9 @@ describe('Eos:', function () {
     explain.outputs[0].address.should.equal(receiver.name);
     explain.outputs[0].amount.should.equal('1.0000 SYS');
     explain.outputs[0].memo?.should.equal('Some memo');
-    explain.expiration.should.equal('2019-09-19T16:39:15.000');
-    explain.ref_block_num.should.equal(100);
-    explain.ref_block_prefix.should.equal(100);
+    explain.expiration?.should.equal('2019-09-19T16:39:15.000');
+    explain.ref_block_num?.should.equal(100);
+    explain.ref_block_prefix?.should.equal(100);
     explain.actions[0].name.should.equal('transfer');
   });
 
@@ -216,9 +216,9 @@ describe('Eos:', function () {
     explain.outputs[0].address.should.equal(receiver.name);
     explain.outputs[0].amount.should.equal('1.0000 SYS');
     explain.outputs[0].memo?.should.equal('Some memo');
-    explain.expiration.should.equal('2019-09-19T16:39:15.000');
-    explain.ref_block_num.should.equal(100);
-    explain.ref_block_prefix.should.equal(100);
+    explain.expiration?.should.equal('2019-09-19T16:39:15.000');
+    explain.ref_block_num?.should.equal(100);
+    explain.ref_block_prefix?.should.equal(100);
     explain.actions[0].name.should.equal('transfer');
   });
 
@@ -244,9 +244,9 @@ describe('Eos:', function () {
       txHex: tx.toBroadcastFormat().serializedTransaction,
       feeInfo: { fee: '0' },
     }) as EosTransactionExplanation;
-    explain.expiration.should.equal('2019-09-19T16:39:15.000');
-    explain.ref_block_num.should.equal(100);
-    explain.ref_block_prefix.should.equal(100);
+    explain.expiration?.should.equal('2019-09-19T16:39:15.000');
+    explain.ref_block_num?.should.equal(100);
+    explain.ref_block_prefix?.should.equal(100);
     explain.actions[0].name.should.equal('powerup');
   });
 });
