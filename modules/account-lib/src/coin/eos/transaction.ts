@@ -45,26 +45,176 @@ export class Transaction extends BaseTransaction {
     const txJson = await this.toJson();
     const actions = txJson.actions;
     actions.forEach((action) => {
-      if (action.name === 'transfer') {
-        const to = action.data.to;
-        const from = action.data.from;
-        const amount = action.data.quantity;
+      switch (action.name) {
+        case 'transfer': {
+          const to = action.data.to;
+          const from = action.data.from;
+          const amount = action.data.quantity;
 
-        if (!to || !from || !amount) {
-          throw new InvalidTransactionError('Missing required fields');
+          if (!to || !from || !amount) {
+            throw new InvalidTransactionError('Missing required fields');
+          }
+
+          this._outputs.push({
+            address: to,
+            value: amount,
+            coin: this._coinConfig.name,
+          });
+
+          this._inputs.push({
+            address: from,
+            value: amount,
+            coin: this._coinConfig.name,
+          });
+          break;
         }
+        case 'delegatebw': {
+          const to = action.data.receiver;
+          const from = action.data.from;
 
-        this._outputs.push({
-          address: to,
-          value: amount,
-          coin: this._coinConfig.name,
-        });
+          if (!to || !from) {
+            throw new InvalidTransactionError('Missing required fields');
+          }
 
-        this._inputs.push({
-          address: from,
-          value: amount,
-          coin: this._coinConfig.name,
-        });
+          this._outputs.push({
+            address: to,
+            value: '0',
+            coin: this._coinConfig.name,
+          });
+
+          this._inputs.push({
+            address: from,
+            value: '0',
+            coin: this._coinConfig.name,
+          });
+          break;
+        }
+        case 'undelegatebw': {
+          const to = action.data.receiver;
+          const from = action.data.from;
+
+          if (!to || !from) {
+            throw new InvalidTransactionError('Missing required fields');
+          }
+
+          this._outputs.push({
+            address: to,
+            value: '0',
+            coin: this._coinConfig.name,
+          });
+
+          this._inputs.push({
+            address: from,
+            value: '0',
+            coin: this._coinConfig.name,
+          });
+          break;
+        }
+        case 'buyrambytes': {
+          const to = action.data.receiver;
+          const from = action.data.payer;
+
+          if (!to || !from) {
+            throw new InvalidTransactionError('Missing required fields');
+          }
+
+          this._outputs.push({
+            address: to,
+            value: '0',
+            coin: this._coinConfig.name,
+          });
+
+          this._inputs.push({
+            address: from,
+            value: '0',
+            coin: this._coinConfig.name,
+          });
+          break;
+        }
+        case 'newaccount': {
+          const from = action.data.creator;
+
+          if (!from) {
+            throw new InvalidTransactionError('Missing required fields');
+          }
+
+          this._outputs.push({
+            address: from,
+            value: '0',
+            coin: this._coinConfig.name,
+          });
+
+          this._inputs.push({
+            address: from,
+            value: '0',
+            coin: this._coinConfig.name,
+          });
+          break;
+        }
+        case 'updateauth':
+        case 'deleteauth':
+        case 'linkauth':
+        case 'unlinkauth': {
+          const from = action.data.account;
+
+          if (!from) {
+            throw new InvalidTransactionError('Missing required fields');
+          }
+
+          this._outputs.push({
+            address: from,
+            value: '0',
+            coin: this._coinConfig.name,
+          });
+
+          this._inputs.push({
+            address: from,
+            value: '0',
+            coin: this._coinConfig.name,
+          });
+          break;
+        }
+        case 'voteproducer': {
+          const from = action.data.voter;
+
+          if (!from) {
+            throw new InvalidTransactionError('Missing required fields');
+          }
+
+          this._outputs.push({
+            address: from,
+            value: '0',
+            coin: this._coinConfig.name,
+          });
+
+          this._inputs.push({
+            address: from,
+            value: '0',
+            coin: this._coinConfig.name,
+          });
+          break;
+        }
+        case 'powerup': {
+          const to = action.data.receiver;
+          const from = action.data.payer;
+
+          if (!to || !from) {
+            throw new InvalidTransactionError('Missing required fields');
+          }
+
+          this._outputs.push({
+            address: to,
+            value: '0',
+            coin: this._coinConfig.name,
+          });
+
+          this._inputs.push({
+            address: from,
+            value: '0',
+            coin: this._coinConfig.name,
+          });
+          break;
+        }
       }
     });
   }
@@ -261,17 +411,6 @@ export class Transaction extends BaseTransaction {
               net_frac: action.data.net_frac,
               cpu_frac: action.data.cpu_frac,
               max_payment: action.data.max_payment,
-            },
-          });
-          break;
-        case 'newaccount':
-          result.actions.push({
-            name: action.name,
-            data: {
-              creator: action.data.creator,
-              name: action.data.name,
-              owner: action.data.owner,
-              active: action.data.active,
             },
           });
           break;
