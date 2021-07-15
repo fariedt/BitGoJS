@@ -19,23 +19,14 @@ import { NodeCallback } from '../types';
 import { BigNumber } from 'bignumber.js';
 import { HDNode } from '@bitgo/utxo-lib';
 import * as ecc from 'eosjs-ecc';
-import * as url from 'url';
-import * as querystring from 'querystring';
 import * as _ from 'lodash';
 import * as Bluebird from 'bluebird';
 const co = Bluebird.coroutine;
-import { InvalidAddressError, UnexpectedAddressError } from '../../errors';
 import * as config from '../../config';
 import { Environments } from '../environments';
 import * as request from 'superagent';
-import { sign } from 'bitcoinjs-message';
 
 export interface EosTransactionExplanation extends TransactionExplanation, accountLib.Eos.interfaces.TxJson {}
-
-interface AddressDetails {
-  address: string;
-  memoId?: string;
-}
 
 export interface EosTx {
   signatures: string[];
@@ -203,87 +194,6 @@ export class Eos extends BaseCoin {
   }
 
   /**
-   * Evaluates whether a memo is valid
-   *
-   * @param value - the memo to be checked
-   */
-  isValidMemo({ value }: { value: string }): boolean {
-    return _.isString(value) && value.length <= 256;
-  }
-
-  /**
-   * Return boolean indicating whether a memo id is valid
-   *
-   * @param memoId - the memo id to be checked
-   */
-  isValidMemoId(memoId: string): boolean {
-    if (!this.isValidMemo({ value: memoId })) {
-      return false;
-    }
-
-    let memoIdNumber;
-    try {
-      memoIdNumber = new BigNumber(memoId);
-    } catch (e) {
-      return false;
-    }
-
-    return memoIdNumber.gte(0);
-  }
-
-  /**
-   * Process address into address and memo id
-   * @param address - the address
-   */
-  getAddressDetails(address: string): AddressDetails {
-    const destinationDetails = url.parse(address);
-    const destinationAddress = destinationDetails.pathname;
-
-    if (!destinationAddress) {
-      throw new InvalidAddressError(`failed to parse address: ${address}`);
-    }
-
-    // EOS addresses have to be "human readable", which means up to 12 characters and only a-z1-5., i.e.mtoda1.bitgo
-    // source: https://developers.eos.io/eosio-cpp/docs/naming-conventions
-    if (!/^[a-z1-5.]*$/.test(destinationAddress) || destinationAddress.length > Eos.ADDRESS_LENGTH) {
-      throw new InvalidAddressError(`invalid address: ${address}`);
-    }
-
-    // address doesn't have a memo id
-    if (destinationDetails.pathname === address) {
-      return {
-        address: address,
-        memoId: undefined,
-      };
-    }
-
-    if (!destinationDetails.query) {
-      throw new InvalidAddressError(`failed to parse query string: ${address}`);
-    }
-
-    const queryDetails = querystring.parse(destinationDetails.query);
-    if (!queryDetails.memoId) {
-      // if there are more properties, the query details need to contain the memoId property
-      throw new InvalidAddressError(`invalid property in address: ${address}`);
-    }
-
-    if (Array.isArray(queryDetails.memoId) && queryDetails.memoId.length !== 1) {
-      // valid addresses can only contain one memo id
-      throw new InvalidAddressError(`invalid address '${address}', must contain exactly one memoId`);
-    }
-
-    const [memoId] = _.castArray(queryDetails.memoId);
-    if (!this.isValidMemoId(memoId)) {
-      throw new InvalidAddressError(`invalid address: '${address}', memoId is not valid`);
-    }
-
-    return {
-      address: destinationAddress,
-      memoId,
-    };
-  }
-
-  /**
    * Convert a currency amount represented in base units (satoshi, wei, atoms, drops, stroops)
    * to big units (btc, eth, rmg, xrp, xlm)
    */
@@ -292,19 +202,6 @@ export class Eos extends BaseCoin {
     const bigNumber = new BigNumber(baseUnits).dividedBy(dividend);
     // set the format so commas aren't added to large coin amounts
     return bigNumber.toFormat(4, null as any, { groupSeparator: '', decimalSeparator: '.' });
-  }
-
-  /**
-   * Validate and return address with appended memo id
-   *
-   * @param address
-   * @param memoId
-   */
-  normalizeAddress({ address, memoId }: AddressDetails): string {
-    if (memoId && this.isValidMemoId(memoId)) {
-      return `${address}?memoId=${memoId}`;
-    }
-    return address;
   }
 
   /**
@@ -327,28 +224,11 @@ export class Eos extends BaseCoin {
    * @param rootAddress - the wallet's root address
    */
   verifyAddress({ address, rootAddress }: VerifyAddressOptions): boolean {
-    if (!rootAddress || !_.isString(rootAddress)) {
-      throw new Error('missing required string rootAddress');
-    }
-
-    if (!this.isValidAddress(address)) {
-      throw new InvalidAddressError(`invalid address: ${address}`);
-    }
-
-    const addressDetails = this.getAddressDetails(address);
-    const rootAddressDetails = this.getAddressDetails(rootAddress);
-
-    if (!addressDetails || !rootAddressDetails) {
+    try {
+      return accountLib.Eos.Utils.default.verifyAddress({ address, rootAddress });
+    } catch (e) {
       return false;
     }
-
-    if (addressDetails.address !== rootAddressDetails.address) {
-      throw new UnexpectedAddressError(
-        `address validation failure: ${addressDetails.address} vs ${rootAddressDetails.address}`
-      );
-    }
-
-    return true;
   }
 
   /**
