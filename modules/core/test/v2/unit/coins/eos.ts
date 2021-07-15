@@ -108,33 +108,7 @@ import { EosTransactionExplanation } from '../../../../src/v2/coins/eos';
 //     });
 //   });
 
-//   describe('Transactions:', function() {
-//     it('should generate a valid transaction signature', async function() {
-//       const signatureData = 'abcd';
-//       const tx = {
-//         txHex: signatureData,
-//         headers: {
-//           ref_block_num: 1,
-//           ref_block_prefix: 'asd',
-//         },
-//         transaction: {
-//           signatures: [],
-//           packed_trx: signatureData,
-//           compression: 'none',
-//         },
-//         recipients: [{ }]
-//       };
-
-//       const seed = Buffer.from('c3b09c24731be2851b624d9d5b3f60fa129695c24071768d15654bea207b7bb6', 'hex');
-//       const keyPair = basecoin.generateKeyPair(seed);
-//       console.log(keyPair);
-//       const { halfSigned } = await basecoin.signTransaction({ txPrebuild: tx, prv: keyPair.prv });
-//       const signature = halfSigned.transaction.signatures[0];
-//       const hdNode = bitcoin.HDNode.fromBase58(keyPair.pub);
-//       const eosPubkey = ecc.PublicKey.fromBuffer(hdNode.getPublicKeyBuffer()).toString();
-//       console.log(eosPubkey);
-//       ecc.verify(signature, Buffer.from(signatureData, 'hex'), eosPubkey).should.eql(true);
-//     });
+  
 
 //     it('should explain an EOS transaction', async function() {
 //       const explainTransactionParams = {
@@ -182,6 +156,25 @@ describe('Eos:', function () {
       .refBlockPrefix(100);
     return txBuilder;
   };
+  it('should generate a valid transaction signature', async function() {
+    const signatureData = EosResources.transactions.transferTransaction.serializedTransaction;
+    const tx = {
+      txHex: signatureData,
+      headers: {
+        ref_block_num: 1,
+        ref_block_prefix: 'asd',
+      },
+      transaction: {
+        signatures: [],
+        packed_trx: signatureData,
+        compression: 'none',
+      },
+      recipients: [{ }]
+    };
+    const seed = Buffer.from('c3b09c24731be2851b624d9d5b3f60fa129695c24071768d15654bea207b7bb6', 'hex');
+    const keyPair = basecoin.generateKeyPair(seed);
+    const { halfSigned } = await basecoin.signTransaction({ txPrebuild: tx, keyPair: keyPair });
+  });
 
   it('should explain a transaction hex', async function () {
     const explain = await basecoin.explainTransaction({

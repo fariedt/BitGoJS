@@ -17,9 +17,7 @@ import {
 } from '../baseCoin';
 import { NodeCallback } from '../types';
 import { BigNumber } from 'bignumber.js';
-import { randomBytes } from 'crypto';
 import { HDNode } from '@bitgo/utxo-lib';
-// import * as EosJs from 'eosjs';
 import * as ecc from 'eosjs-ecc';
 import * as url from 'url';
 import * as querystring from 'querystring';
@@ -30,6 +28,7 @@ import { InvalidAddressError, UnexpectedAddressError } from '../../errors';
 import * as config from '../../config';
 import { Environments } from '../environments';
 import * as request from 'superagent';
+import { sign } from 'bitcoinjs-message';
 
 export interface EosTransactionExplanation extends TransactionExplanation, accountLib.Eos.interfaces.TxJson {}
 
@@ -71,9 +70,10 @@ interface EosTransactionPrebuild {
 }
 
 export interface EosSignTransactionParams extends BaseSignTransactionOptions {
-  prv: string;
   txPrebuild: EosTransactionPrebuild;
   recipients: Recipient[];
+  keyPair: KeyPair;
+  txHex: string;
 }
 
 export interface EosHalfSigned {
@@ -88,43 +88,11 @@ export interface EosSignedTransaction extends BaseHalfSignedTransaction {
   halfSigned: EosHalfSigned;
 }
 
-// interface DeserializedEosTransaction extends EosTransactionHeaders {
-//   max_net_usage_words: number;
-//   max_cpu_usage_ms: number;
-//   delay_sec: number;
-//   context_free_actions: EosTransactionAction[];
-//   actions: EosTransactionAction[];
-//   transaction_extensions: Record<string, unknown>[];
-//   address: string;
-//   amount: string;
-//   transaction_id: string;
-//   memo?: string;
-//   proxy?: string;
-//   producers?: string[];
-// }
-
-// interface DeserializedStakeAction {
-//   address: string;
-//   amount: string;
-// }
-
-// interface DeserializedVoteAction {
-//   address: string;
-//   proxy: string;
-//   producers: string[];
-// }
-
 interface ExplainTransactionOptions {
   txHex?: string;
   transaction?: { packed_trx: string };
   headers?: EosTransactionHeaders;
 }
-
-// interface RecoveryTransaction {
-//   transaction: EosTx;
-//   txid: string;
-//   recoveryAmount: number;
-// }
 
 interface RecoveryOptions {
   userKey: string; // Box A
@@ -194,18 +162,17 @@ export class Eos extends BaseCoin {
    *
    * @param seed - Seed from which the new keypair should be generated, otherwise a random seed is used
    */
+
   generateKeyPair(seed?: Buffer): KeyPair {
-    if (!seed) {
-      // An extended private key has both a normal 256 bit private key and a 256
-      // bit chain code, both of which must be random. 512 bits is therefore the
-      // maximum entropy and gives us maximum security against cracking.
-      seed = randomBytes(512 / 8);
+    const keyPair = seed ? new accountLib.Eos.KeyPair({ seed }) : new accountLib.Eos.KeyPair();
+    const keys = keyPair.getKeys();
+
+    if (!keys.prv) {
+      throw new Error('Missing prv in key generation.');
     }
-    const extendedKey = HDNode.fromSeedBuffer(seed);
-    const xpub = extendedKey.neutered().toBase58();
     return {
-      pub: xpub,
-      prv: extendedKey.toBase58(),
+      pub: keys.pub,
+      prv: keys.prv,
     };
   }
 
@@ -216,8 +183,7 @@ export class Eos extends BaseCoin {
    */
   isValidPub(pub: string): boolean {
     try {
-      HDNode.fromBase58(pub);
-      return true;
+      return accountLib.Eos.Utils.default.isValidPublicKey(pub);
     } catch (e) {
       return false;
     }
@@ -230,8 +196,7 @@ export class Eos extends BaseCoin {
    */
   isValidPrv(prv: string): boolean {
     try {
-      HDNode.fromBase58(prv);
-      return true;
+      return accountLib.Eos.Utils.default.isValidPrivateKey(prv);
     } catch (e) {
       return false;
     }
@@ -349,8 +314,7 @@ export class Eos extends BaseCoin {
    */
   isValidAddress(address: string): boolean {
     try {
-      const addressDetails = this.getAddressDetails(address);
-      return address === this.normalizeAddress(addressDetails);
+      return accountLib.Eos.Utils.default.isValidAddress(address);
     } catch (e) {
       return false;
     }
@@ -400,17 +364,28 @@ export class Eos extends BaseCoin {
     params: EosSignTransactionParams,
     callback?: NodeCallback<EosSignedTransaction>
   ): Bluebird<EosSignedTransaction> {
+    const self = this;
     return co<EosSignedTransaction>(function* () {
-      const prv: string = params.prv;
       const txHex: string = params.txPrebuild.txHex;
-      const transaction: EosTx = params.txPrebuild.transaction;
+      if (!txHex) {
+        throw new Error('Missing sign transaction params');
+      }
+      const factory = accountLib.register(self.getChain(), accountLib.Eos.TransactionBuilderFactory);
+      const txBuilder = factory.from(txHex);
+      txBuilder.sign({ key: params.keyPair.prv });
+      const tx = (yield txBuilder.build()) as any;
+      if (!tx) {
+        throw new Error('Invalid transaction');
+      }
+      if (!tx.verifySignature([params.keyPair.pub])) {
+        throw new Error('Invalid Signature');
+      }
 
-      const signBuffer: Buffer = Buffer.from(txHex, 'hex');
-      const privateKeyBuffer: Buffer = HDNode.fromBase58(prv).getKey().getPrivateKeyBuffer();
-      const signature: string = ecc.Signature.sign(signBuffer, privateKeyBuffer).toString();
-
-      transaction.signatures.push(signature);
-
+      const transaction: EosTx = {
+        signatures: tx._eosTransaction.signatures,
+        packed_trx: tx._eosTransaction.serializedTransaction,
+        compression: tx._eosTransaction.serializedContextFreeData,
+      };
       const txParams = {
         transaction,
         txHex,
