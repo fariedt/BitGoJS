@@ -2,6 +2,7 @@
  * @prettier
  */
 import { BitGo } from '../../bitgo';
+import * as accountLib from '@bitgo/account-lib';
 import {
   BaseCoin,
   TransactionExplanation,
@@ -9,30 +10,23 @@ import {
   ParseTransactionOptions,
   ParsedTransaction,
   VerifyTransactionOptions,
+  TransactionRecipient,
   VerifyAddressOptions as BaseVerifyAddressOptions,
   HalfSignedTransaction as BaseHalfSignedTransaction,
   SignTransactionOptions as BaseSignTransactionOptions,
 } from '../baseCoin';
 import { NodeCallback } from '../types';
 import { BigNumber } from 'bignumber.js';
-import { randomBytes } from 'crypto';
 import { HDNode } from '@bitgo/utxo-lib';
-import * as EosJs from 'eosjs';
 import * as ecc from 'eosjs-ecc';
-import * as url from 'url';
-import * as querystring from 'querystring';
 import * as _ from 'lodash';
 import * as Bluebird from 'bluebird';
 const co = Bluebird.coroutine;
-import { InvalidAddressError, UnexpectedAddressError } from '../../errors';
 import * as config from '../../config';
 import { Environments } from '../environments';
 import * as request from 'superagent';
 
-interface AddressDetails {
-  address: string;
-  memoId?: string;
-}
+export interface EosTransactionExplanation extends TransactionExplanation, accountLib.Eos.interfaces.TxJson {}
 
 export interface EosTx {
   signatures: string[];
@@ -67,9 +61,10 @@ interface EosTransactionPrebuild {
 }
 
 export interface EosSignTransactionParams extends BaseSignTransactionOptions {
-  prv: string;
   txPrebuild: EosTransactionPrebuild;
   recipients: Recipient[];
+  keyPair: KeyPair;
+  txHex: string;
 }
 
 export interface EosHalfSigned {
@@ -84,41 +79,10 @@ export interface EosSignedTransaction extends BaseHalfSignedTransaction {
   halfSigned: EosHalfSigned;
 }
 
-interface DeserializedEosTransaction extends EosTransactionHeaders {
-  max_net_usage_words: number;
-  max_cpu_usage_ms: number;
-  delay_sec: number;
-  context_free_actions: EosTransactionAction[];
-  actions: EosTransactionAction[];
-  transaction_extensions: Record<string, unknown>[];
-  address: string;
-  amount: string;
-  transaction_id: string;
-  memo?: string;
-  proxy?: string;
-  producers?: string[];
-}
-
-interface DeserializedStakeAction {
-  address: string;
-  amount: string;
-}
-
-interface DeserializedVoteAction {
-  address: string;
-  proxy: string;
-  producers: string[];
-}
-
 interface ExplainTransactionOptions {
-  transaction: { packed_trx: string };
-  headers: EosTransactionHeaders;
-}
-
-interface RecoveryTransaction {
-  transaction: EosTx;
-  txid: string;
-  recoveryAmount: number;
+  txHex?: string;
+  transaction?: { packed_trx: string };
+  headers?: EosTransactionHeaders;
 }
 
 interface RecoveryOptions {
@@ -189,18 +153,18 @@ export class Eos extends BaseCoin {
    *
    * @param seed - Seed from which the new keypair should be generated, otherwise a random seed is used
    */
+
   generateKeyPair(seed?: Buffer): KeyPair {
-    if (!seed) {
-      // An extended private key has both a normal 256 bit private key and a 256
-      // bit chain code, both of which must be random. 512 bits is therefore the
-      // maximum entropy and gives us maximum security against cracking.
-      seed = randomBytes(512 / 8);
+    const keyPair = seed ? new accountLib.Eos.KeyPair({ seed }) : new accountLib.Eos.KeyPair();
+    const keys = keyPair.getExtendedKeys();
+
+    if (!keys.xprv) {
+      throw new Error('Missing xprv in key generation.');
     }
-    const extendedKey = HDNode.fromSeedBuffer(seed);
-    const xpub = extendedKey.neutered().toBase58();
+
     return {
-      pub: xpub,
-      prv: extendedKey.toBase58(),
+      pub: keys.xpub,
+      prv: keys.xprv,
     };
   }
 
@@ -211,8 +175,7 @@ export class Eos extends BaseCoin {
    */
   isValidPub(pub: string): boolean {
     try {
-      HDNode.fromBase58(pub);
-      return true;
+      return accountLib.Eos.Utils.default.isValidPublicKey(pub);
     } catch (e) {
       return false;
     }
@@ -225,92 +188,10 @@ export class Eos extends BaseCoin {
    */
   isValidPrv(prv: string): boolean {
     try {
-      HDNode.fromBase58(prv);
-      return true;
+      return accountLib.Eos.Utils.default.isValidPrivateKey(prv);
     } catch (e) {
       return false;
     }
-  }
-
-  /**
-   * Evaluates whether a memo is valid
-   *
-   * @param value - the memo to be checked
-   */
-  isValidMemo({ value }: { value: string }): boolean {
-    return _.isString(value) && value.length <= 256;
-  }
-
-  /**
-   * Return boolean indicating whether a memo id is valid
-   *
-   * @param memoId - the memo id to be checked
-   */
-  isValidMemoId(memoId: string): boolean {
-    if (!this.isValidMemo({ value: memoId })) {
-      return false;
-    }
-
-    let memoIdNumber;
-    try {
-      memoIdNumber = new BigNumber(memoId);
-    } catch (e) {
-      return false;
-    }
-
-    return memoIdNumber.gte(0);
-  }
-
-  /**
-   * Process address into address and memo id
-   * @param address - the address
-   */
-  getAddressDetails(address: string): AddressDetails {
-    const destinationDetails = url.parse(address);
-    const destinationAddress = destinationDetails.pathname;
-
-    if (!destinationAddress) {
-      throw new InvalidAddressError(`failed to parse address: ${address}`);
-    }
-
-    // EOS addresses have to be "human readable", which means up to 12 characters and only a-z1-5., i.e.mtoda1.bitgo
-    // source: https://developers.eos.io/eosio-cpp/docs/naming-conventions
-    if (!/^[a-z1-5.]*$/.test(destinationAddress) || destinationAddress.length > Eos.ADDRESS_LENGTH) {
-      throw new InvalidAddressError(`invalid address: ${address}`);
-    }
-
-    // address doesn't have a memo id
-    if (destinationDetails.pathname === address) {
-      return {
-        address: address,
-        memoId: undefined,
-      };
-    }
-
-    if (!destinationDetails.query) {
-      throw new InvalidAddressError(`failed to parse query string: ${address}`);
-    }
-
-    const queryDetails = querystring.parse(destinationDetails.query);
-    if (!queryDetails.memoId) {
-      // if there are more properties, the query details need to contain the memoId property
-      throw new InvalidAddressError(`invalid property in address: ${address}`);
-    }
-
-    if (Array.isArray(queryDetails.memoId) && queryDetails.memoId.length !== 1) {
-      // valid addresses can only contain one memo id
-      throw new InvalidAddressError(`invalid address '${address}', must contain exactly one memoId`);
-    }
-
-    const [memoId] = _.castArray(queryDetails.memoId);
-    if (!this.isValidMemoId(memoId)) {
-      throw new InvalidAddressError(`invalid address: '${address}', memoId is not valid`);
-    }
-
-    return {
-      address: destinationAddress,
-      memoId,
-    };
   }
 
   /**
@@ -325,27 +206,13 @@ export class Eos extends BaseCoin {
   }
 
   /**
-   * Validate and return address with appended memo id
-   *
-   * @param address
-   * @param memoId
-   */
-  normalizeAddress({ address, memoId }: AddressDetails): string {
-    if (memoId && this.isValidMemoId(memoId)) {
-      return `${address}?memoId=${memoId}`;
-    }
-    return address;
-  }
-
-  /**
    * Return boolean indicating whether input is valid public key for the coin
    *
    * @param address - the address to be checked
    */
   isValidAddress(address: string): boolean {
     try {
-      const addressDetails = this.getAddressDetails(address);
-      return address === this.normalizeAddress(addressDetails);
+      return accountLib.Eos.Utils.default.isValidAddress(address);
     } catch (e) {
       return false;
     }
@@ -358,28 +225,11 @@ export class Eos extends BaseCoin {
    * @param rootAddress - the wallet's root address
    */
   verifyAddress({ address, rootAddress }: VerifyAddressOptions): boolean {
-    if (!rootAddress || !_.isString(rootAddress)) {
-      throw new Error('missing required string rootAddress');
-    }
-
-    if (!this.isValidAddress(address)) {
-      throw new InvalidAddressError(`invalid address: ${address}`);
-    }
-
-    const addressDetails = this.getAddressDetails(address);
-    const rootAddressDetails = this.getAddressDetails(rootAddress);
-
-    if (!addressDetails || !rootAddressDetails) {
+    try {
+      return accountLib.Eos.Utils.default.verifyAddress({ address, rootAddress });
+    } catch (e) {
       return false;
     }
-
-    if (addressDetails.address !== rootAddressDetails.address) {
-      throw new UnexpectedAddressError(
-        `address validation failure: ${addressDetails.address} vs ${rootAddressDetails.address}`
-      );
-    }
-
-    return true;
   }
 
   /**
@@ -395,17 +245,31 @@ export class Eos extends BaseCoin {
     params: EosSignTransactionParams,
     callback?: NodeCallback<EosSignedTransaction>
   ): Bluebird<EosSignedTransaction> {
+    const self = this;
     return co<EosSignedTransaction>(function* () {
-      const prv: string = params.prv;
       const txHex: string = params.txPrebuild.txHex;
-      const transaction: EosTx = params.txPrebuild.transaction;
+      if (!txHex) {
+        throw new Error('Missing sign transaction params');
+      }
+      const factory = accountLib.register(self.getChain(), accountLib.Eos.TransactionBuilderFactory);
+      const txBuilder = factory.from(txHex);
+      const hdNode = HDNode.fromBase58(params.keyPair.prv);
+      const privateKey = hdNode.keyPair.toWIF();
+      const publicKey = ecc.privateToPublic(privateKey);
+      txBuilder.sign({ key: privateKey });
+      const tx = (yield txBuilder.build()) as any;
+      if (!tx) {
+        throw new Error('Invalid transaction');
+      }
+      if (!tx.verifySignature([publicKey])) {
+        throw new Error('Invalid Signature');
+      }
 
-      const signBuffer: Buffer = Buffer.from(txHex, 'hex');
-      const privateKeyBuffer: Buffer = HDNode.fromBase58(prv).getKey().getPrivateKeyBuffer();
-      const signature: string = ecc.Signature.sign(signBuffer, privateKeyBuffer).toString();
-
-      transaction.signatures.push(signature);
-
+      const transaction: EosTx = {
+        signatures: tx._eosTransaction.signatures,
+        packed_trx: tx._eosTransaction.serializedTransaction,
+        compression: tx._eosTransaction.serializedContextFreeData,
+      };
       const txParams = {
         transaction,
         txHex,
@@ -419,149 +283,6 @@ export class Eos extends BaseCoin {
       .asCallback(callback);
   }
 
-  private deserializeStakeAction(eosClient: EosJs, serializedStakeAction: string): DeserializedStakeAction {
-    const eosStakeActionStruct = eosClient.fc.abiCache.abi('eosio').structs.delegatebw;
-    const serializedStakeActionBuffer = Buffer.from(serializedStakeAction, 'hex');
-    const stakeAction = EosJs.modules.Fcbuffer.fromBuffer(eosStakeActionStruct, serializedStakeActionBuffer);
-
-    if (stakeAction.from !== stakeAction.receiver) {
-      throw new Error(`staker (${stakeAction.from}) and receiver (${stakeAction.receiver}) must be the same`);
-    }
-
-    if (stakeAction.transfer !== 0) {
-      throw new Error('cannot transfer funds as part of delegatebw action');
-    }
-
-    // stake_cpu_quantity is used as the amount because the BitGo platform only stakes cpu for voting transactions
-    return {
-      address: stakeAction.from,
-      amount: this.bigUnitsToBaseUnits(stakeAction.stake_cpu_quantity.split(' ')[0]),
-    };
-  }
-
-  private static deserializeVoteAction(eosClient: EosJs, serializedVoteAction: string): DeserializedVoteAction {
-    const eosVoteActionStruct = eosClient.fc.abiCache.abi('eosio').structs.voteproducer;
-    const serializedVoteActionBuffer = Buffer.from(serializedVoteAction, 'hex');
-    const voteAction = EosJs.modules.Fcbuffer.fromBuffer(eosVoteActionStruct, serializedVoteActionBuffer);
-
-    const proxyIsEmpty = _.isEmpty(voteAction.proxy);
-    const producersIsEmpty = _.isEmpty(voteAction.producers);
-    if ((proxyIsEmpty && producersIsEmpty) || (!proxyIsEmpty && !producersIsEmpty)) {
-      throw new Error('voting transactions must specify either producers or proxy to vote for');
-    }
-
-    return { address: voteAction.voter, proxy: voteAction.proxy, producers: voteAction.producers };
-  }
-
-  /**
-   * Deserialize a transaction
-   * @param transaction
-   * @param headers
-   */
-  private deserializeTransaction({
-    transaction,
-    headers,
-  }: ExplainTransactionOptions): Bluebird<DeserializedEosTransaction> {
-    const self = this;
-    return co<DeserializedEosTransaction>(function* () {
-      const eosClientConfig = {
-        chainId: self.getChainId(),
-        transactionHeaders: headers,
-      };
-      const eosClient = new EosJs(eosClientConfig);
-
-      // Get tx base values
-      const eosTxStruct = eosClient.fc.structs.transaction;
-      const serializedTxBuffer = Buffer.from(transaction.packed_trx, 'hex');
-      const tx = EosJs.modules.Fcbuffer.fromBuffer(eosTxStruct, serializedTxBuffer);
-
-      // Only support transactions with one (transfer | voteproducer) or two (delegatebw & voteproducer) actions
-      if (tx.actions.length !== 1 && tx.actions.length !== 2) {
-        throw new Error(`invalid number of actions: ${tx.actions.length}`);
-      }
-
-      const txAction = tx.actions[0];
-      if (!txAction) {
-        throw new Error('missing transaction action');
-      }
-
-      if (txAction.name === 'transfer') {
-        // Transfers should only have 1 action
-        if (tx.actions.length !== 1) {
-          throw new Error(`transfers should only have 1 action: ${tx.actions.length} given`);
-        }
-
-        const transferStruct = eosClient.fc.abiCache.abi('eosio.token').structs.transfer;
-        const serializedTransferDataBuffer = Buffer.from(txAction.data, 'hex');
-        const transferActionData = EosJs.modules.Fcbuffer.fromBuffer(transferStruct, serializedTransferDataBuffer);
-        tx.address = transferActionData.to;
-        tx.amount = this.bigUnitsToBaseUnits(transferActionData.quantity.split(' ')[0]);
-        tx.memo = transferActionData.memo;
-      } else if (txAction.name === 'delegatebw') {
-        // The delegatebw action should only be part of voting transactions
-        if (tx.actions.length !== 2) {
-          throw new Error(
-            `staking transactions that include the delegatebw action should have 2 actions: ${tx.actions.length} given`
-          );
-        }
-
-        const txAction2 = tx.actions[1];
-        if (txAction2.name !== 'voteproducer') {
-          throw new Error(`invalid staking transaction action: ${txAction2.name}, expecting: voteproducer`);
-        }
-
-        const deserializedStakeAction = self.deserializeStakeAction(eosClient, txAction.data);
-        const deserializedVoteAction = Eos.deserializeVoteAction(eosClient, txAction2.data);
-        if (deserializedStakeAction.address !== deserializedVoteAction.address) {
-          throw new Error(
-            `staker (${deserializedStakeAction.address}) and voter (${deserializedVoteAction.address}) must be the same`
-          );
-        }
-
-        tx.amount = deserializedStakeAction.amount;
-        tx.proxy = deserializedVoteAction.proxy;
-        tx.producers = deserializedVoteAction.producers;
-      } else if (txAction.name === 'voteproducer') {
-        if (tx.actions.length > 2) {
-          throw new Error('voting transactions should not have more than 2 actions');
-        }
-
-        let deserializedStakeAction;
-        if (tx.actions.length === 2) {
-          const txAction2 = tx.actions[1];
-          if (txAction2.name !== 'delegatebw') {
-            throw new Error(`invalid staking transaction action: ${txAction2.name}, expecting: delegatebw`);
-          }
-
-          deserializedStakeAction = self.deserializeStakeAction(eosClient, txAction2.data);
-        }
-
-        const deserializedVoteAction = Eos.deserializeVoteAction(eosClient, txAction.data);
-        if (!!deserializedStakeAction && deserializedStakeAction.address !== deserializedVoteAction.address) {
-          throw new Error(
-            `staker (${deserializedStakeAction.address}) and voter (${deserializedVoteAction.address}) must be the same`
-          );
-        }
-
-        tx.amount = !!deserializedStakeAction ? deserializedStakeAction.amount : '0';
-        tx.proxy = deserializedVoteAction.proxy;
-        tx.producers = deserializedVoteAction.producers;
-      } else {
-        throw new Error(`invalid action: ${txAction.name}`);
-      }
-      // Get the tx id if tx headers were provided
-      if (headers) {
-        const rebuiltTransaction = yield eosClient.transaction(
-          { actions: tx.actions },
-          { sign: false, broadcast: false }
-        );
-        tx.transaction_id = (rebuiltTransaction as any).transaction_id;
-      }
-
-      return tx;
-    }).call(this);
-  }
-
   /**
    * Explain/parse transaction
    * @param params - ExplainTransactionOptions
@@ -569,38 +290,62 @@ export class Eos extends BaseCoin {
    */
   explainTransaction(
     params: ExplainTransactionOptions,
-    callback?: NodeCallback<TransactionExplanation>
-  ): Bluebird<TransactionExplanation> {
+    callback?: NodeCallback<EosTransactionExplanation>
+  ): Bluebird<EosTransactionExplanation> {
     const self = this;
-    return co<TransactionExplanation>(function* () {
-      let transaction;
-      try {
-        transaction = yield self.deserializeTransaction(params);
-      } catch (e) {
-        throw new Error('invalid EOS transaction or headers');
+    return co<EosTransactionExplanation>(function* () {
+      const txHex = params.txHex;
+
+      if (!txHex) {
+        throw new Error('Missing explain transaction params');
       }
-      return {
-        displayOrder: [
-          'id',
-          'outputAmount',
-          'changeAmount',
-          'outputs',
-          'changeOutputs',
-          'fee',
-          'memo',
-          'proxy',
-          'producers',
-        ],
-        id: transaction.transaction_id,
+      const factory = accountLib.getBuilder(self.getChain()) as accountLib.Eos.TransactionBuilderFactory;
+
+      const txBuilder = factory.from(txHex);
+      const tx = (yield txBuilder.build()) as any;
+      const txJson = (yield tx.toJson()) as unknown as accountLib.Eos.interfaces.TxJson;
+      const outputs: TransactionRecipient[] = [];
+      txJson.actions.forEach((action) => {
+        if (action.data.to && action.data.quantity) {
+          outputs.push({
+            address: action.data.to,
+            amount: action.data.quantity,
+            memo: action.data.memo,
+          });
+        }
+      });
+      const displayOrder = [
+        'id',
+        'changeOutputs',
+        'outputs',
+        'outputAmount',
+        'changeAmount',
+        'fee',
+        'actions',
+        'expiration',
+        'ref_block_num',
+        'ref_block_prefix',
+        'max_net_usage_words',
+        'max_cpu_usage_ms',
+        'delay_sec',
+      ];
+      const explanationResult: EosTransactionExplanation = {
+        displayOrder,
+        id: '',
         changeOutputs: [],
-        outputAmount: transaction.amount,
-        changeAmount: 0,
-        outputs: !!transaction.address ? [{ address: transaction.address, amount: transaction.amount }] : [],
-        fee: {},
-        memo: transaction.memo,
-        proxy: transaction.proxy,
-        producers: transaction.producers,
+        outputs,
+        outputAmount: '0',
+        changeAmount: '0',
+        fee: { fee: '0' },
+        actions: txJson.actions,
+        expiration: txJson.expiration,
+        ref_block_num: txJson.ref_block_num,
+        ref_block_prefix: txJson.ref_block_prefix,
+        max_net_usage_words: txJson.max_net_usage_words,
+        max_cpu_usage_ms: txJson.max_cpu_usage_ms,
+        delay_sec: txJson.delay_sec,
       };
+      return explanationResult;
     })
       .call(this)
       .asCallback(callback);
@@ -804,130 +549,6 @@ export class Eos extends BaseCoin {
     const signBuffer = Buffer.from(signableTx, 'hex');
     const privateKeyBuffer = signingKey.getKey().getPrivateKeyBuffer();
     return ecc.Signature.sign(signBuffer, privateKeyBuffer).toString();
-  }
-
-  /**
-   * Serialize an EOS transaction, to the format that should be signed
-   * @param eosClient an offline EOSClient that has the transaction structs
-   * @param transaction The EOS transaction returned from `eosClient.transaction` to serialize
-   * @return {String} serialized transaction in hex format
-   */
-  serializeTransaction(eosClient: EosJs, transaction: EosJs.transaction): string {
-    const eosTxStruct = eosClient.fc.structs.transaction;
-    const txHex = transaction.transaction.transaction;
-    const txObject = eosTxStruct.fromObject(txHex);
-
-    return EosJs.modules.Fcbuffer.toBuffer(eosTxStruct, txObject).toString('hex');
-  }
-
-  /**
-   * Builds a funds recovery transaction without BitGo
-   * @param params
-   * @param callback
-   */
-  recover(params: RecoveryOptions, callback?: NodeCallback<RecoveryTransaction>): Bluebird<RecoveryTransaction> {
-    const self = this;
-    return co<RecoveryTransaction>(function* () {
-      if (!params.rootAddress) {
-        throw new Error('missing required string rootAddress');
-      }
-      const isKrsRecovery = params.backupKey.startsWith('xpub') && !params.userKey.startsWith('xpub');
-      const isUnsignedSweep = params.backupKey.startsWith('xpub') && params.userKey.startsWith('xpub');
-
-      const keys = (yield self.initiateRecovery(params)) as any;
-
-      const rootAddressDetails = self.getAddressDetails(params.rootAddress);
-      const account = (yield self.getAccountFromNode({ address: rootAddressDetails.address })) as any;
-
-      if (!account.core_liquid_balance) {
-        throw new Error('Could not find any balance to recovery for ' + params.rootAddress);
-      }
-
-      if (!account.permissions) {
-        throw new Error('Could not find permissions for ' + params.rootAddress);
-      }
-      const userPub = ecc.PublicKey.fromBuffer(keys[0].getPublicKeyBuffer()).toString();
-      const backupPub = ecc.PublicKey.fromBuffer(keys[1].getPublicKeyBuffer()).toString();
-
-      const activePermission = _.find(account.permissions, { perm_name: 'active' });
-      const requiredAuth = _.get(activePermission, 'required_auth');
-      if (!requiredAuth) {
-        throw new Error('Required auth for active permission not found in account');
-      }
-      if (requiredAuth.threshold !== 2) {
-        throw new Error('Unexpected active permission threshold');
-      }
-
-      const foundPubs = {};
-      const requiredAuthKeys = requiredAuth.keys;
-      for (const signer of requiredAuthKeys) {
-        if (signer.weight !== 1) {
-          throw new Error('invalid signer weight');
-        }
-        // if it's a dupe of a pub we already know, block
-        if (foundPubs[signer.key]) {
-          throw new Error('duplicate signer key');
-        }
-        foundPubs[signer.key] = (foundPubs[signer.key] || 0) + 1;
-      }
-      if (foundPubs[userPub] !== 1 || foundPubs[backupPub] !== 1) {
-        throw new Error('unexpected incidence frequency of user signer key');
-      }
-
-      const accountBalance = account.core_liquid_balance.split(' ')[0];
-      const recoveryAmount = this.bigUnitsToBaseUnits(new BigNumber(accountBalance));
-
-      const destinationAddress = params.recoveryDestination;
-      const destinationAddressDetails = self.getAddressDetails(destinationAddress);
-      const destinationAccount = yield self.getAccountFromNode({ address: destinationAddressDetails.address });
-      if (!destinationAccount) {
-        throw new Error('Destination account not found');
-      }
-
-      const transactionHeaders = yield self.getTransactionHeadersFromNode();
-      const eosClient = new EosJs({ chainId: self.getChainId(), transactionHeaders });
-
-      const transferAction = self.getTransferAction({
-        recipient: destinationAddressDetails.address,
-        sender: rootAddressDetails.address,
-        amount: new BigNumber(recoveryAmount),
-        memo: destinationAddressDetails.memoId,
-      });
-
-      const transaction = yield eosClient.transaction({ actions: [transferAction] }, { sign: false, broadcast: false });
-
-      const serializedTransaction = self.serializeTransaction(eosClient, transaction);
-      const txObject = {
-        transaction: {
-          compression: 'none',
-          packed_trx: serializedTransaction,
-          signatures: [] as string[],
-        },
-        txid: (transaction as any).transaction_id,
-        recoveryAmount: accountBalance,
-      };
-      const signableTx = Buffer.concat([
-        Buffer.from(self.getChainId(), 'hex'), // The ChainID representing the chain that we are on
-        Buffer.from(serializedTransaction, 'hex'), // The serialized unsigned tx
-        Buffer.from(new Uint8Array(32)), // Some padding
-      ]).toString('hex');
-
-      if (isUnsignedSweep) {
-        return txObject;
-      }
-
-      const userSignature = self.signTx(signableTx, keys[0]);
-      txObject.transaction.signatures.push(userSignature);
-
-      if (!isKrsRecovery) {
-        const backupSignature = self.signTx(signableTx, keys[1]);
-        txObject.transaction.signatures.push(backupSignature);
-      }
-
-      return txObject;
-    })
-      .call(this)
-      .asCallback(callback);
   }
 
   parseTransaction(
